@@ -56,5 +56,7 @@ export const FORMA_PAGAMENTO_META: Record<FormaPagamento, { label: string; short
   cartao: { label: "Cartão", short: "Cartão" },
 };
 
-export const formatBRL = (n: number) =>
-  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export const formatBRL = (n: number) => {
+  const value = Math.abs(n).toFixed(2).replace(".", ",");
+  return n < 0 ? `-R$ ${value}` : `R$ ${value}`;
+};

@@ -12,6 +12,8 @@ import { PedidoCard } from "@/components/pedidos/PedidoCard";
 import { PedidoForm } from "@/components/pedidos/PedidoForm";
 
 export const Route = createFileRoute("/")({
+  // Dashboard usa Supabase e Radix no browser — SSR causava erro de hidratação no Netlify.
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Dashboard — Hamburgueria" },
@@ -164,7 +166,7 @@ function Dashboard() {
             </div>
             <div>
               <h1 className="text-xl font-bold leading-tight">Burger Dashboard</h1>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground" suppressHydrationWarning>
                 {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
               </p>
             </div>
