@@ -40,24 +40,26 @@ Abra [http://localhost:3000](http://localhost:3000).
 
 1. Suba o código para GitHub.
 2. No Netlify: **Add new site → Import an existing project**.
-3. **Importante:** em **Site configuration → Environment variables**, adicione:
+3. Em **Site configuration → Environment variables**, adicione (escopo **All**):
 
 | Variável | Valor |
 |---|---|
-| `VITE_SUPABASE_URL` | `https://SEU-PROJETO.supabase.co` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | publishable ou anon key |
-| `SUPABASE_URL` | mesma URL |
-| `SUPABASE_PUBLISHABLE_KEY` | mesma key |
+| `SUPABASE_URL` | `https://SEU-PROJETO.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | publishable ou anon key |
 
-4. **Depois de salvar as variáveis, faça um novo deploy** (Deploys → Trigger deploy → Deploy site).  
-   As variáveis `VITE_*` entram no JavaScript **no momento do build**. Se você adicionou depois do primeiro deploy, o site quebra até rebuildar.
+Opcional para dev local (`.env`):
 
-5. Confirme que o banco tem a tabela `pedidos` (passo 1).
+| Variável | Valor |
+|---|---|
+| `VITE_SUPABASE_URL` | mesma URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | mesma key |
+
+4. **Deploys → Trigger deploy → Deploy site** (obrigatório após salvar as variáveis).
 
 ### Checklist se der erro
 
 - [ ] `schema.sql` executado no Supabase
-- [ ] 4 variáveis acima configuradas no Netlify
+- [ ] `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` no Netlify (escopo **All**)
 - [ ] Novo deploy feito **depois** de configurar as variáveis
 - [ ] Build no Netlify terminou sem erro
 

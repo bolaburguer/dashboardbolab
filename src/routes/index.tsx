@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster, toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
+import { getSupabaseConfigErrorMessage } from "@/lib/supabase-env";
 import type { Pedido, PedidoStatus, PedidoItem, TipoEntrega, FormaPagamento } from "@/lib/pedidos-types";
 import { formatBRL, STATUS_META } from "@/lib/pedidos-types";
 import { PedidoCard } from "@/components/pedidos/PedidoCard";
@@ -31,48 +32,73 @@ function Dashboard() {
   const [filter, setFilter] = useState<Filter>("todos");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Pedido | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setConfigError(getSupabaseConfigErrorMessage());
+      setLoading(false);
+      return;
+    }
+
     let active = true;
     const load = async () => {
-      const { data, error } = await supabase
-        .from("pedidos")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!active) return;
-      if (error) { toast.error("Erro ao carregar pedidos"); return; }
-      setPedidos((data ?? []) as unknown as Pedido[]);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from("pedidos")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (!active) return;
+        if (error) {
+          toast.error("Erro ao carregar pedidos");
+          setLoading(false);
+          return;
+        }
+        setPedidos((data ?? []) as unknown as Pedido[]);
+        setLoading(false);
+      } catch (err) {
+        if (!active) return;
+        setConfigError(err instanceof Error ? err.message : getSupabaseConfigErrorMessage());
+        setLoading(false);
+      }
     };
     load();
 
-    const ch = supabase
-      .channel("pedidos-rt")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pedidos" },
-        (payload) => {
-          setPedidos((prev) => {
-            if (payload.eventType === "INSERT") {
-              const novo = payload.new as unknown as Pedido;
-              if (prev.some((p) => p.id === novo.id)) return prev;
-              return [novo, ...prev];
-            }
-            if (payload.eventType === "UPDATE") {
-              const atualizado = payload.new as unknown as Pedido;
-              return prev.map((p) => (p.id === atualizado.id ? atualizado : p));
-            }
-            if (payload.eventType === "DELETE") {
-              const removido = payload.old as unknown as { id: number };
-              return prev.filter((p) => p.id !== removido.id);
-            }
-            return prev;
-          });
-        },
-      )
-      .subscribe();
+    let ch: ReturnType<typeof supabase.channel> | undefined;
+    try {
+      ch = supabase
+        .channel("pedidos-rt")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "pedidos" },
+          (payload) => {
+            setPedidos((prev) => {
+              if (payload.eventType === "INSERT") {
+                const novo = payload.new as unknown as Pedido;
+                if (prev.some((p) => p.id === novo.id)) return prev;
+                return [novo, ...prev];
+              }
+              if (payload.eventType === "UPDATE") {
+                const atualizado = payload.new as unknown as Pedido;
+                return prev.map((p) => (p.id === atualizado.id ? atualizado : p));
+              }
+              if (payload.eventType === "DELETE") {
+                const removido = payload.old as unknown as { id: number };
+                return prev.filter((p) => p.id !== removido.id);
+              }
+              return prev;
+            });
+          },
+        )
+        .subscribe();
+    } catch {
+      // Realtime opcional — lista ainda funciona sem ele.
+    }
 
-    return () => { active = false; supabase.removeChannel(ch); };
+    return () => {
+      active = false;
+      if (ch) supabase.removeChannel(ch);
+    };
   }, []);
 
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -220,7 +246,12 @@ function Dashboard() {
         </section>
 
         {/* Lista */}
-        {loading ? (
+        {configError ? (
+          <Card className="p-8 border-destructive/40 bg-destructive/5">
+            <h3 className="font-semibold text-lg text-destructive">Configuração pendente</h3>
+            <p className="text-sm text-muted-foreground mt-2">{configError}</p>
+          </Card>
+        ) : loading ? (
           <p className="text-center text-muted-foreground py-20">Carregando...</p>
         ) : filtered.length === 0 ? (
           <Card className="p-16 text-center border-dashed">

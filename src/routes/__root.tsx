@@ -10,6 +10,7 @@ import {
 import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { getSupabasePublicConfigForInjection } from "../lib/supabase-env";
 
 function NotFoundComponent() {
   return (
@@ -44,7 +45,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {error.message || "Something went wrong on our end. You can try refreshing or head back home."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -94,9 +95,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const supabaseEnv = getSupabasePublicConfigForInjection();
+  const envScript = supabaseEnv
+    ? `window.__SUPABASE_ENV__=${JSON.stringify({
+        url: supabaseEnv.url,
+        publishableKey: supabaseEnv.publishableKey,
+      })};`
+    : null;
+
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
+        {envScript ? (
+          <script dangerouslySetInnerHTML={{ __html: envScript }} />
+        ) : null}
         <HeadContent />
       </head>
       <body>
