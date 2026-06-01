@@ -20,36 +20,63 @@ export type Database = {
           created_at: string
           data: string
           detalhes: Json
+          encerrado_em: string | null
           faturado: number
           id: number
+          iniciado_em: string | null
           pedidos_cancelados: number
           pedidos_entregues: number
           recebido: number
           total_pedidos: number
+          turno_id: number | null
         }
         Insert: {
           a_receber?: number
           created_at?: string
           data: string
           detalhes?: Json
+          encerrado_em?: string | null
           faturado?: number
           id?: number
+          iniciado_em?: string | null
           pedidos_cancelados?: number
           pedidos_entregues?: number
           recebido?: number
           total_pedidos?: number
+          turno_id?: number | null
         }
         Update: {
           a_receber?: number
           created_at?: string
           data?: string
           detalhes?: Json
+          encerrado_em?: string | null
           faturado?: number
           id?: number
+          iniciado_em?: string | null
           pedidos_cancelados?: number
           pedidos_entregues?: number
           recebido?: number
           total_pedidos?: number
+          turno_id?: number | null
+        }
+        Relationships: []
+      }
+      turnos: {
+        Row: {
+          encerrado_em: string | null
+          id: number
+          iniciado_em: string
+        }
+        Insert: {
+          encerrado_em?: string | null
+          id?: number
+          iniciado_em?: string
+        }
+        Update: {
+          encerrado_em?: string | null
+          id?: number
+          iniciado_em?: string
         }
         Relationships: []
       }

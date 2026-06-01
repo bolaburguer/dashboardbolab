@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, TrendingUp, ClipboardList, ChefHat, Wallet, Flame, CircleDashed } from "lucide-react";
+import {
+  Plus,
+  TrendingUp,
+  ClipboardList,
+  ChefHat,
+  Wallet,
+  Flame,
+  CircleDashed,
+  PlayCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,11 +18,8 @@ import { FechamentoSection } from "@/components/fechamento/FechamentoSection";
 import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { getSupabaseConfigErrorMessage } from "@/lib/supabase-env";
 import { rowToFechamento, type FechamentoDiario } from "@/lib/fechamento-types";
-import {
-  filterPedidosDoDia,
-  resumoHojeFromPedidos,
-  toDateKey,
-} from "@/lib/fechamento-stats";
+import { filterPedidosDoTurno, resumoHojeFromPedidos } from "@/lib/fechamento-stats";
+import { rowToTurno, formatTurnoHorario, type Turno } from "@/lib/turno-types";
 import type { Pedido, PedidoStatus, PedidoItem, TipoEntrega, FormaPagamento } from "@/lib/pedidos-types";
 import { formatBRL, STATUS_META } from "@/lib/pedidos-types";
 import { PedidoCard } from "@/components/pedidos/PedidoCard";
@@ -36,28 +42,50 @@ type ViewTab = "pedidos" | "relatorios";
 function Dashboard() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [fechamentos, setFechamentos] = useState<FechamentoDiario[]>([]);
+  const [turnoAtivo, setTurnoAtivo] = useState<Turno | null>(null);
   const [loading, setLoading] = useState(true);
+  const [iniciandoDia, setIniciandoDia] = useState(false);
   const [filter, setFilter] = useState<Filter>("todos");
   const [viewTab, setViewTab] = useState<ViewTab>("pedidos");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Pedido | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
 
-  const hojeKey = toDateKey();
-  const pedidosHoje = useMemo(() => filterPedidosDoDia(pedidos, hojeKey), [pedidos, hojeKey]);
-  const diaJaFechado = fechamentos.some((f) => f.data === hojeKey);
+  const pedidosTurno = useMemo(
+    () => (turnoAtivo ? filterPedidosDoTurno(pedidos, turnoAtivo.iniciado_em) : []),
+    [pedidos, turnoAtivo],
+  );
 
   const loadFechamentos = useCallback(async () => {
     const { data, error } = await supabase
       .from("fechamentos_diarios")
       .select("*")
-      .order("data", { ascending: false });
+      .order("created_at", { ascending: false });
     if (error) {
       console.error(error);
       return;
     }
     setFechamentos((data ?? []).map(rowToFechamento));
   }, []);
+
+  const loadTurnoAtivo = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("turnos")
+      .select("*")
+      .is("encerrado_em", null)
+      .order("iniciado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setTurnoAtivo(data ? rowToTurno(data) : null);
+  }, []);
+
+  const reloadOperacao = useCallback(async () => {
+    await Promise.all([loadFechamentos(), loadTurnoAtivo()]);
+  }, [loadFechamentos, loadTurnoAtivo]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -80,7 +108,7 @@ function Dashboard() {
           return;
         }
         setPedidos((data ?? []) as unknown as Pedido[]);
-        await loadFechamentos();
+        await reloadOperacao();
         setLoading(false);
       } catch (err) {
         if (!active) return;
@@ -125,16 +153,46 @@ function Dashboard() {
       active = false;
       if (ch) supabase.removeChannel(ch);
     };
-  }, [loadFechamentos]);
+  }, [reloadOperacao]);
 
-  const { faturado: faturadoHoje, recebido: recebidoHoje, a_receber: aReceberHoje } =
-    resumoHojeFromPedidos(pedidosHoje);
-  const emPreparacao = pedidosHoje.filter((p) => p.status === "em-preparacao").length;
-  const pendentes = pedidosHoje.filter((p) => p.status === "pendente").length;
+  const handleIniciarDia = async () => {
+    setIniciandoDia(true);
+    try {
+      const { data: aberto } = await supabase
+        .from("turnos")
+        .select("id")
+        .is("encerrado_em", null)
+        .limit(1)
+        .maybeSingle();
+
+      if (aberto) {
+        toast.error("Já existe um turno aberto.");
+        await loadTurnoAtivo();
+        return;
+      }
+
+      const { data, error } = await supabase.from("turnos").insert({}).select().single();
+      if (error) {
+        toast.error("Erro ao iniciar dia. Rode a migration de turnos no Supabase.");
+        console.error(error);
+        return;
+      }
+      setTurnoAtivo(rowToTurno(data));
+      toast.success("Dia iniciado! Pode registrar pedidos.");
+      setViewTab("pedidos");
+    } finally {
+      setIniciandoDia(false);
+    }
+  };
+
+  const { faturado: faturadoTurno, recebido: recebidoTurno, a_receber: aReceberTurno } =
+    resumoHojeFromPedidos(pedidosTurno);
+  const emPreparacao = pedidosTurno.filter((p) => p.status === "em-preparacao").length;
+  const pendentes = pedidosTurno.filter((p) => p.status === "pendente").length;
 
   const filtered = useMemo(
-    () => (filter === "todos" ? pedidosHoje : pedidosHoje.filter((p) => p.status === filter)),
-    [pedidosHoje, filter],
+    () => (filter === "todos" ? pedidosTurno : pedidosTurno.filter((p) => p.status === filter)),
+    [pedidosTurno, filter],
   );
 
   const patchLocal = (id: number, patch: Partial<Pedido>) =>
@@ -189,9 +247,9 @@ function Dashboard() {
   };
 
   const stats = [
-    { label: "Faturado hoje", value: formatBRL(faturadoHoje), icon: TrendingUp, accent: "text-info", bg: "bg-info/10" },
-    { label: "Recebido hoje", value: formatBRL(recebidoHoje), icon: Wallet, accent: "text-success", bg: "bg-success/10" },
-    { label: "A receber", value: formatBRL(aReceberHoje), icon: CircleDashed, accent: "text-warning", bg: "bg-warning/15" },
+    { label: "Faturado (turno)", value: formatBRL(faturadoTurno), icon: TrendingUp, accent: "text-info", bg: "bg-info/10" },
+    { label: "Recebido (turno)", value: formatBRL(recebidoTurno), icon: Wallet, accent: "text-success", bg: "bg-success/10" },
+    { label: "A receber", value: formatBRL(aReceberTurno), icon: CircleDashed, accent: "text-warning", bg: "bg-warning/15" },
     { label: "Em preparação", value: emPreparacao, icon: ChefHat, accent: "text-primary", bg: "bg-primary/10" },
   ];
 
@@ -209,26 +267,36 @@ function Dashboard() {
               <h1 className="text-xl font-bold leading-tight">Burger Dashboard</h1>
               <p className="text-xs text-muted-foreground" suppressHydrationWarning>
                 {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-                {diaJaFechado && " · Dia encerrado"}
+                {turnoAtivo ? ` · ${formatTurnoHorario(turnoAtivo)}` : " · Turno fechado"}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as ViewTab)}>
               <TabsList>
-                <TabsTrigger value="pedidos">Pedidos do dia</TabsTrigger>
+                <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
                 <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button
-              onClick={() => { setEditing(null); setFormOpen(true); }}
-              size="lg"
-              className="shadow-[var(--shadow-glow)]"
-              disabled={diaJaFechado}
-              title={diaJaFechado ? "Encerre o dia amanhã para novos pedidos" : undefined}
-            >
-              <Plus className="size-4" /> Novo pedido
-            </Button>
+            {!turnoAtivo ? (
+              <Button
+                size="lg"
+                className="gap-2 shadow-[var(--shadow-glow)]"
+                onClick={handleIniciarDia}
+                disabled={iniciandoDia || !!configError}
+              >
+                <PlayCircle className="size-4" />
+                {iniciandoDia ? "Abrindo…" : "Iniciar dia"}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => { setEditing(null); setFormOpen(true); }}
+                size="lg"
+                className="shadow-[var(--shadow-glow)]"
+              >
+                <Plus className="size-4" /> Novo pedido
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -236,44 +304,63 @@ function Dashboard() {
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {viewTab === "pedidos" && (
           <>
-            <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {stats.map((s) => (
-                <Card key={s.label} className="p-5 border-border/60">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{s.label}</p>
-                      <p className="text-3xl font-bold mt-2 tabular-nums">{s.value}</p>
-                    </div>
-                    <div className={`size-10 rounded-xl grid place-items-center ${s.bg}`}>
-                      <s.icon className={`size-5 ${s.accent}`} />
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </section>
-
-            <section className="flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <h2 className="text-2xl font-bold">Pedidos de hoje</h2>
-                <p className="text-sm text-muted-foreground">
-                  {filtered.length} {filtered.length === 1 ? "pedido" : "pedidos"}
-                  {pendentes > 0 && filter === "todos" && (
-                    <span className="ml-2 inline-flex items-center gap-1 text-warning font-medium">
-                      • {pendentes} aguardando
-                    </span>
-                  )}
+            {!turnoAtivo && !configError && !loading && (
+              <Card className="p-10 text-center border-primary/30 bg-primary/5">
+                <PlayCircle className="size-12 mx-auto text-primary mb-4" />
+                <h3 className="text-xl font-bold">Turno fechado</h3>
+                <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                  Clique em <strong>Iniciar dia</strong> quando abrir a loja. Ao encerrar, o registro
+                  vai para o histórico e você pode iniciar de novo quando quiser.
                 </p>
-              </div>
-              <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-                <TabsList>
-                  <TabsTrigger value="todos">Todos</TabsTrigger>
-                  <TabsTrigger value="pendente">Pendentes</TabsTrigger>
-                  <TabsTrigger value="em-preparacao">Preparo</TabsTrigger>
-                  <TabsTrigger value="entregue">Entregues</TabsTrigger>
-                  <TabsTrigger value="cancelado">Cancelados</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </section>
+                <Button className="mt-6 gap-2" size="lg" onClick={handleIniciarDia} disabled={iniciandoDia}>
+                  <PlayCircle className="size-4" />
+                  {iniciandoDia ? "Abrindo…" : "Iniciar dia"}
+                </Button>
+              </Card>
+            )}
+
+            {turnoAtivo && (
+              <>
+                <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {stats.map((s) => (
+                    <Card key={s.label} className="p-5 border-border/60">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{s.label}</p>
+                          <p className="text-3xl font-bold mt-2 tabular-nums">{s.value}</p>
+                        </div>
+                        <div className={`size-10 rounded-xl grid place-items-center ${s.bg}`}>
+                          <s.icon className={`size-5 ${s.accent}`} />
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </section>
+
+                <section className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">Pedidos do turno</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {filtered.length} {filtered.length === 1 ? "pedido" : "pedidos"}
+                      {pendentes > 0 && filter === "todos" && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-warning font-medium">
+                          • {pendentes} aguardando
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+                    <TabsList>
+                      <TabsTrigger value="todos">Todos</TabsTrigger>
+                      <TabsTrigger value="pendente">Pendentes</TabsTrigger>
+                      <TabsTrigger value="em-preparacao">Preparo</TabsTrigger>
+                      <TabsTrigger value="entregue">Entregues</TabsTrigger>
+                      <TabsTrigger value="cancelado">Cancelados</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </section>
+              </>
+            )}
 
             {configError ? (
               <Card className="p-8 border-destructive/40 bg-destructive/5">
@@ -282,30 +369,20 @@ function Dashboard() {
               </Card>
             ) : loading ? (
               <p className="text-center text-muted-foreground py-20">Carregando...</p>
-            ) : diaJaFechado ? (
-              <Card className="p-12 text-center border-dashed">
-                <h3 className="font-semibold text-lg">Dia encerrado</h3>
-                <p className="text-sm text-muted-foreground mt-2">
-                  O fechamento de hoje já foi registrado. Amanhã a lista recomeça vazia.
-                </p>
-                <Button className="mt-4" variant="outline" onClick={() => setViewTab("relatorios")}>
-                  Ver relatórios
-                </Button>
-              </Card>
-            ) : filtered.length === 0 ? (
+            ) : turnoAtivo && filtered.length === 0 ? (
               <Card className="p-16 text-center border-dashed">
                 <div className="size-14 rounded-2xl bg-muted mx-auto grid place-items-center mb-4">
                   <ClipboardList className="size-6 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold text-lg">Nenhum pedido hoje</h3>
+                <h3 className="font-semibold text-lg">Nenhum pedido neste turno</h3>
                 <p className="text-sm text-muted-foreground mt-1 mb-5">
-                  Crie o primeiro pedido do dia ou encerre o dia na aba Relatórios.
+                  Crie o primeiro pedido ou encerre o dia na aba Relatórios.
                 </p>
                 <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
                   <Plus className="size-4" /> Novo pedido
                 </Button>
               </Card>
-            ) : (
+            ) : turnoAtivo ? (
               <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((p) => (
                   <PedidoCard
@@ -317,16 +394,18 @@ function Dashboard() {
                   />
                 ))}
               </section>
-            )}
+            ) : null}
           </>
         )}
 
         {viewTab === "relatorios" && !configError && (
           <FechamentoSection
-            pedidosHoje={pedidosHoje}
+            pedidosTurno={pedidosTurno}
             fechamentos={fechamentos}
-            diaJaFechado={diaJaFechado}
-            onFechamentoSalvo={loadFechamentos}
+            turnoAtivo={turnoAtivo}
+            onFechamentoSalvo={reloadOperacao}
+            onIniciarDia={handleIniciarDia}
+            iniciandoDia={iniciandoDia}
           />
         )}
       </main>

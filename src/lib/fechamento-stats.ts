@@ -30,6 +30,11 @@ export function filterPedidosDoDia(pedidos: Pedido[], dateKey: string = toDateKe
   return pedidos.filter((p) => isPedidoDoDia(p, dateKey));
 }
 
+export function filterPedidosDoTurno(pedidos: Pedido[], iniciadoEm: string): Pedido[] {
+  const inicio = new Date(iniciadoEm).getTime();
+  return pedidos.filter((p) => new Date(p.created_at).getTime() >= inicio);
+}
+
 function somarFechamentos(lista: FechamentoDiario[], label: string): ResumoPeriodo {
   return {
     label,

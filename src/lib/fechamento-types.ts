@@ -21,6 +21,9 @@ export interface FechamentoDiario {
   pedidos_cancelados: number;
   detalhes: FechamentoPedidoDetalhe[];
   created_at: string;
+  turno_id: number | null;
+  iniciado_em: string | null;
+  encerrado_em: string | null;
 }
 
 export interface ResumoPeriodo {
@@ -45,6 +48,9 @@ export function rowToFechamento(row: {
   pedidos_cancelados: number;
   detalhes: unknown;
   created_at: string;
+  turno_id?: number | null;
+  iniciado_em?: string | null;
+  encerrado_em?: string | null;
 }): FechamentoDiario {
   return {
     ...row,
@@ -52,6 +58,9 @@ export function rowToFechamento(row: {
     recebido: Number(row.recebido),
     a_receber: Number(row.a_receber),
     detalhes: (row.detalhes ?? []) as FechamentoPedidoDetalhe[],
+    turno_id: row.turno_id ?? null,
+    iniciado_em: row.iniciado_em ?? null,
+    encerrado_em: row.encerrado_em ?? null,
   };
 }
 
@@ -71,7 +80,11 @@ export function pedidosToDetalhes(pedidos: Pedido[]): FechamentoPedidoDetalhe[] 
   }));
 }
 
-export function buildFechamentoFromPedidos(data: string, pedidos: Pedido[]): FechamentoDiarioInsert {
+export function buildFechamentoFromPedidos(
+  data: string,
+  pedidos: Pedido[],
+  turno?: { id: number; iniciado_em: string; encerrado_em: string },
+): FechamentoDiarioInsert {
   const ativos = pedidos.filter((p) => p.status !== "cancelado");
   return {
     data,
@@ -82,5 +95,8 @@ export function buildFechamentoFromPedidos(data: string, pedidos: Pedido[]): Fec
     pedidos_entregues: pedidos.filter((p) => p.status === "entregue").length,
     pedidos_cancelados: pedidos.filter((p) => p.status === "cancelado").length,
     detalhes: pedidosToDetalhes(pedidos),
+    turno_id: turno?.id ?? null,
+    iniciado_em: turno?.iniciado_em ?? null,
+    encerrado_em: turno?.encerrado_em ?? null,
   };
 }

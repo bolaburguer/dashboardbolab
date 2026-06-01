@@ -39,22 +39,19 @@ npm run dev
 
 ## Fechamento diário e relatórios
 
-### Fluxo do dia
+### Fluxo
 
-1. Durante o dia, registre pedidos na aba **Pedidos do dia**.
-2. Os cards (Faturado, Recebido, etc.) mostram só o dia atual.
-3. Ao final, vá em **Relatórios** → **Encerrar dia**:
-   - Salva o resumo no Supabase (`fechamentos_diarios`)
-   - Baixa PDF do dia
-   - Marca o dia como encerrado (não aceita novos pedidos até amanhã)
+1. **Iniciar dia** — abre o turno; só então aparecem pedidos e o botão Novo pedido.
+2. Registre pedidos durante o expediente.
+3. **Encerrar dia** (aba Relatórios) — salva histórico, baixa PDF e fecha o turno.
+4. **Iniciar dia** de novo — quando quiser (mesmo dia, outro turno, etc.).
 
 ### Relatórios
 
-- **Semanal** — soma dos dias fechados na semana (seg–dom)
-- **Mensal** — soma do mês calendário
-- **Histórico** — todos os fechamentos com botão para baixar PDF de novo
+- **Semanal / Mensal** — soma dos fechamentos no período + PDF
+- **Histórico** — todos os turnos encerrados com horário e PDF
 
-> Semanal e mensal só contam dias **encerrados**. Feche o dia todo dia útil para o relatório ficar completo.
+> Rode `supabase/migrations/20260602000000_turnos.sql` se o projeto já existia antes desta feature.
 
 ## Estrutura
 

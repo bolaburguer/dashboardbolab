@@ -5,7 +5,7 @@ import {
   Download,
   FileText,
   History,
-  Lock,
+  PlayCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,19 +37,24 @@ import {
 } from "@/lib/fechamento-types";
 import { formatBRL } from "@/lib/pedidos-types";
 import type { Pedido } from "@/lib/pedidos-types";
+import { formatTurnoHorario, type Turno } from "@/lib/turno-types";
 
 interface Props {
-  pedidosHoje: Pedido[];
+  pedidosTurno: Pedido[];
   fechamentos: FechamentoDiario[];
-  diaJaFechado: boolean;
+  turnoAtivo: Turno | null;
   onFechamentoSalvo: () => void;
+  onIniciarDia: () => Promise<void>;
+  iniciandoDia: boolean;
 }
 
 export function FechamentoSection({
-  pedidosHoje,
+  pedidosTurno,
   fechamentos,
-  diaJaFechado,
+  turnoAtivo,
   onFechamentoSalvo,
+  onIniciarDia,
+  iniciandoDia,
 }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -69,9 +74,16 @@ export function FechamentoSection({
   }, [fechamentos]);
 
   const handleEncerrarDia = async () => {
+    if (!turnoAtivo) return;
     setSalvando(true);
     try {
-      const payload = buildFechamentoFromPedidos(hojeKey, pedidosHoje);
+      const encerradoEm = new Date().toISOString();
+      const payload = buildFechamentoFromPedidos(hojeKey, pedidosTurno, {
+        id: turnoAtivo.id,
+        iniciado_em: turnoAtivo.iniciado_em,
+        encerrado_em: encerradoEm,
+      });
+
       const { data, error } = await supabase
         .from("fechamentos_diarios")
         .insert({
@@ -82,18 +94,23 @@ export function FechamentoSection({
         .single();
 
       if (error) {
-        if (error.code === "23505") {
-          toast.error("Este dia já foi encerrado.");
-        } else {
-          toast.error("Erro ao salvar fechamento. Rode a migration no Supabase.");
-          console.error(error);
-        }
+        toast.error("Erro ao salvar fechamento. Rode a migration de turnos no Supabase.");
+        console.error(error);
         return;
+      }
+
+      const { error: turnoError } = await supabase
+        .from("turnos")
+        .update({ encerrado_em: encerradoEm })
+        .eq("id", turnoAtivo.id);
+
+      if (turnoError) {
+        console.error(turnoError);
       }
 
       const fechamento = rowToFechamento(data);
       downloadFechamentoPdf(fechamento);
-      toast.success("Dia encerrado! PDF baixado e registro salvo.");
+      toast.success("Dia encerrado! PDF baixado. Clique em Iniciar dia quando quiser reabrir.");
       onFechamentoSalvo();
     } finally {
       setSalvando(false);
@@ -111,26 +128,23 @@ export function FechamentoSection({
               Fechamento e relatórios
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Encerre o dia para arquivar o faturamento e iniciar o próximo turno.
+              {turnoAtivo
+                ? `Turno aberto · ${formatTurnoHorario(turnoAtivo)}`
+                : "Nenhum turno aberto — inicie o dia para registrar pedidos."}
             </p>
           </div>
-          <Button
-            size="lg"
-            variant={diaJaFechado ? "outline" : "default"}
-            disabled={diaJaFechado}
-            onClick={() => setConfirmOpen(true)}
-            className="gap-2"
-          >
-            {diaJaFechado ? (
-              <>
-                <Lock className="size-4" /> Dia encerrado
-              </>
+          <div className="flex flex-wrap gap-2">
+            {!turnoAtivo ? (
+              <Button size="lg" className="gap-2" onClick={onIniciarDia} disabled={iniciandoDia}>
+                <PlayCircle className="size-4" />
+                {iniciandoDia ? "Abrindo…" : "Iniciar dia"}
+              </Button>
             ) : (
-              <>
+              <Button size="lg" className="gap-2" onClick={() => setConfirmOpen(true)}>
                 <CalendarCheck className="size-4" /> Encerrar dia
-              </>
+              </Button>
             )}
-          </Button>
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
@@ -144,7 +158,7 @@ export function FechamentoSection({
                 <p className="text-xs text-muted-foreground mt-1 capitalize">{semana.label}</p>
                 <p className="text-sm text-muted-foreground mt-2">
                   Recebido {formatBRL(semana.recebido)} · {semana.total_pedidos} pedidos ·{" "}
-                  {semana.dias_registrados} dia(s) fechado(s)
+                  {semana.dias_registrados} fechamento(s)
                 </p>
               </div>
               <Button
@@ -170,7 +184,7 @@ export function FechamentoSection({
                 <p className="text-xs text-muted-foreground mt-1 capitalize">{mes.label}</p>
                 <p className="text-sm text-muted-foreground mt-2">
                   Recebido {formatBRL(mes.recebido)} · {mes.total_pedidos} pedidos ·{" "}
-                  {mes.dias_registrados} dia(s) fechado(s)
+                  {mes.dias_registrados} fechamento(s)
                 </p>
               </div>
               <Button
@@ -193,7 +207,7 @@ export function FechamentoSection({
           </h3>
           {fechamentos.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nenhum dia encerrado ainda. Use &quot;Encerrar dia&quot; ao final do expediente.
+              Nenhum fechamento ainda. Inicie o dia, registre pedidos e encerre ao final.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -201,6 +215,7 @@ export function FechamentoSection({
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="pb-2 pr-4 font-medium">Data</th>
+                    <th className="pb-2 pr-4 font-medium">Turno</th>
                     <th className="pb-2 pr-4 font-medium">Faturado</th>
                     <th className="pb-2 pr-4 font-medium">Recebido</th>
                     <th className="pb-2 pr-4 font-medium">Pedidos</th>
@@ -211,6 +226,11 @@ export function FechamentoSection({
                   {fechamentos.map((f) => (
                     <tr key={f.id} className="border-b border-border/50 last:border-0">
                       <td className="py-3 pr-4">{formatDateBR(f.data)}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">
+                        {f.iniciado_em && f.encerrado_em
+                          ? `${new Date(f.iniciado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })} – ${new Date(f.encerrado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`
+                          : "—"}
+                      </td>
                       <td className="py-3 pr-4 tabular-nums">{formatBRL(f.faturado)}</td>
                       <td className="py-3 pr-4 tabular-nums">{formatBRL(f.recebido)}</td>
                       <td className="py-3 pr-4">{f.total_pedidos}</td>
@@ -234,15 +254,16 @@ export function FechamentoSection({
             <DialogTitle>Encerrar o dia?</DialogTitle>
             <DialogDescription>
               Será gerado o registro de <strong>{formatDateBR(hojeKey)}</strong> com{" "}
-              {pedidosHoje.length} pedido(s), o PDF será baixado e o histórico atualizado. Novos
-              pedidos amanhã começam em uma lista limpa.
+              {pedidosTurno.length} pedido(s) deste turno. O PDF será baixado. Depois, use{" "}
+              <strong>Iniciar dia</strong> quando quiser reabrir.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-1">
             <p>
-              Faturado: <strong>{formatBRL(buildFechamentoFromPedidos(hojeKey, pedidosHoje).faturado)}</strong>
+              Faturado:{" "}
+              <strong>{formatBRL(buildFechamentoFromPedidos(hojeKey, pedidosTurno).faturado)}</strong>
             </p>
-            <p>Pedidos: {pedidosHoje.length}</p>
+            <p>Pedidos: {pedidosTurno.length}</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>

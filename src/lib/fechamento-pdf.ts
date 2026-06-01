@@ -36,7 +36,20 @@ export function downloadFechamentoPdf(fechamento: FechamentoDiario) {
   };
 
   line(STORE, 16, true);
-  line(`Fechamento do dia — ${formatDateBR(fechamento.data)}`, 12, true);
+  line(`Fechamento — ${formatDateBR(fechamento.data)}`, 12, true);
+  if (fechamento.iniciado_em && fechamento.encerrado_em) {
+    const ini = new Date(fechamento.iniciado_em).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Sao_Paulo",
+    });
+    const fim = new Date(fechamento.encerrado_em).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Sao_Paulo",
+    });
+    line(`Turno: ${ini} – ${fim}`, 10);
+  }
   y += 2;
 
   line(`Faturado: ${formatBRL(fechamento.faturado)}`, 11, true);
