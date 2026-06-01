@@ -13,13 +13,10 @@ Sistema de pedidos para hamburgueria, com Supabase e deploy no Netlify.
 1. Crie um projeto em [supabase.com/dashboard](https://supabase.com/dashboard).
 2. Abra **SQL Editor** → **New query**.
 3. Cole e execute o conteúdo de [`supabase/schema.sql`](supabase/schema.sql).
-4. Em **Project Settings → API**, copie:
-   - **Project URL**
-   - **Publishable key** (`sb_publishable_...`) ou **anon key** (`eyJ...`)
+4. Se o projeto **já existia**, rode também [`supabase/migrations/20260601000000_fechamentos_diarios.sql`](supabase/migrations/20260601000000_fechamentos_diarios.sql).
+5. Em **Project Settings → API**, copie URL e publishable/anon key.
 
 ## 2. Variáveis de ambiente (local)
-
-Copie `.env.example` para `.env` e preencha:
 
 ```bash
 cp .env.example .env
@@ -32,39 +29,36 @@ npm install
 npm run dev
 ```
 
-Abra [http://localhost:3000](http://localhost:3000).
-
 ## 4. Deploy no Netlify
 
-### Passo a passo
+1. Suba o código para GitHub e conecte no Netlify.
+2. Variáveis em **Site configuration → Environment variables** (escopo **All**):
+   - `SUPABASE_URL`
+   - `SUPABASE_PUBLISHABLE_KEY`
+3. **Deploys → Trigger deploy** após salvar as variáveis.
 
-1. Suba o código para GitHub.
-2. No Netlify: **Add new site → Import an existing project**.
-3. Em **Site configuration → Environment variables**, adicione (escopo **All**):
+## Fechamento diário e relatórios
 
-| Variável | Valor |
-|---|---|
-| `SUPABASE_URL` | `https://SEU-PROJETO.supabase.co` |
-| `SUPABASE_PUBLISHABLE_KEY` | publishable ou anon key |
+### Fluxo do dia
 
-Opcional para dev local (`.env`):
+1. Durante o dia, registre pedidos na aba **Pedidos do dia**.
+2. Os cards (Faturado, Recebido, etc.) mostram só o dia atual.
+3. Ao final, vá em **Relatórios** → **Encerrar dia**:
+   - Salva o resumo no Supabase (`fechamentos_diarios`)
+   - Baixa PDF do dia
+   - Marca o dia como encerrado (não aceita novos pedidos até amanhã)
 
-| Variável | Valor |
-|---|---|
-| `VITE_SUPABASE_URL` | mesma URL |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | mesma key |
+### Relatórios
 
-4. **Deploys → Trigger deploy → Deploy site** (obrigatório após salvar as variáveis).
+- **Semanal** — soma dos dias fechados na semana (seg–dom)
+- **Mensal** — soma do mês calendário
+- **Histórico** — todos os fechamentos com botão para baixar PDF de novo
 
-### Checklist se der erro
-
-- [ ] `schema.sql` executado no Supabase
-- [ ] `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` no Netlify (escopo **All**)
-- [ ] Novo deploy feito **depois** de configurar as variáveis
-- [ ] Build no Netlify terminou sem erro
+> Semanal e mensal só contam dias **encerrados**. Feche o dia todo dia útil para o relatório ficar completo.
 
 ## Estrutura
 
-- `src/routes/` — páginas
-- `src/integrations/supabase/` — cliente Supabase
-- `supabase/schema.sql` — schema do banco
+- `src/routes/` — dashboard
+- `src/components/fechamento/` — encerrar dia e histórico
+- `src/lib/fechamento-*.ts` — cálculos e PDF
+- `supabase/schema.sql` — schema completo

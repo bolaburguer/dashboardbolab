@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      fechamentos_diarios: {
+        Row: {
+          a_receber: number
+          created_at: string
+          data: string
+          detalhes: Json
+          faturado: number
+          id: number
+          pedidos_cancelados: number
+          pedidos_entregues: number
+          recebido: number
+          total_pedidos: number
+        }
+        Insert: {
+          a_receber?: number
+          created_at?: string
+          data: string
+          detalhes?: Json
+          faturado?: number
+          id?: number
+          pedidos_cancelados?: number
+          pedidos_entregues?: number
+          recebido?: number
+          total_pedidos?: number
+        }
+        Update: {
+          a_receber?: number
+          created_at?: string
+          data?: string
+          detalhes?: Json
+          faturado?: number
+          id?: number
+          pedidos_cancelados?: number
+          pedidos_entregues?: number
+          recebido?: number
+          total_pedidos?: number
+        }
+        Relationships: []
+      }
       pedidos: {
         Row: {
           cliente: string

@@ -1,19 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus, TrendingUp, ClipboardList, ChefHat, Wallet, Flame, CircleDashed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster, toast } from "sonner";
+import { FechamentoSection } from "@/components/fechamento/FechamentoSection";
 import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { getSupabaseConfigErrorMessage } from "@/lib/supabase-env";
+import { rowToFechamento, type FechamentoDiario } from "@/lib/fechamento-types";
+import {
+  filterPedidosDoDia,
+  resumoHojeFromPedidos,
+  toDateKey,
+} from "@/lib/fechamento-stats";
 import type { Pedido, PedidoStatus, PedidoItem, TipoEntrega, FormaPagamento } from "@/lib/pedidos-types";
 import { formatBRL, STATUS_META } from "@/lib/pedidos-types";
 import { PedidoCard } from "@/components/pedidos/PedidoCard";
 import { PedidoForm } from "@/components/pedidos/PedidoForm";
 
 export const Route = createFileRoute("/")({
-  // Dashboard usa Supabase e Radix no browser — SSR causava erro de hidratação no Netlify.
   ssr: false,
   head: () => ({
     meta: [
@@ -25,14 +31,33 @@ export const Route = createFileRoute("/")({
 });
 
 type Filter = "todos" | PedidoStatus;
+type ViewTab = "pedidos" | "relatorios";
 
 function Dashboard() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [fechamentos, setFechamentos] = useState<FechamentoDiario[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("todos");
+  const [viewTab, setViewTab] = useState<ViewTab>("pedidos");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Pedido | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+
+  const hojeKey = toDateKey();
+  const pedidosHoje = useMemo(() => filterPedidosDoDia(pedidos, hojeKey), [pedidos, hojeKey]);
+  const diaJaFechado = fechamentos.some((f) => f.data === hojeKey);
+
+  const loadFechamentos = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("fechamentos_diarios")
+      .select("*")
+      .order("data", { ascending: false });
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setFechamentos((data ?? []).map(rowToFechamento));
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -55,6 +80,7 @@ function Dashboard() {
           return;
         }
         setPedidos((data ?? []) as unknown as Pedido[]);
+        await loadFechamentos();
         setLoading(false);
       } catch (err) {
         if (!active) return;
@@ -92,35 +118,25 @@ function Dashboard() {
         )
         .subscribe();
     } catch {
-      // Realtime opcional — lista ainda funciona sem ele.
+      // Realtime opcional
     }
 
     return () => {
       active = false;
       if (ch) supabase.removeChannel(ch);
     };
-  }, []);
+  }, [loadFechamentos]);
 
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const pedidosHoje = pedidos.filter((p) => new Date(p.created_at) >= hoje);
-  const ativosHoje = pedidosHoje.filter((p) => p.status !== "cancelado");
-
-  const recebidoHoje = ativosHoje
-    .filter((p) => p.pago)
-    .reduce((s, p) => s + Number(p.total), 0);
-  const aReceberHoje = ativosHoje
-    .filter((p) => !p.pago)
-    .reduce((s, p) => s + Number(p.total), 0);
-  const faturadoHoje = ativosHoje.reduce((s, p) => s + Number(p.total), 0);
-  const emPreparacao = pedidos.filter((p) => p.status === "em-preparacao").length;
-  const pendentes = pedidos.filter((p) => p.status === "pendente").length;
+  const { faturado: faturadoHoje, recebido: recebidoHoje, a_receber: aReceberHoje } =
+    resumoHojeFromPedidos(pedidosHoje);
+  const emPreparacao = pedidosHoje.filter((p) => p.status === "em-preparacao").length;
+  const pendentes = pedidosHoje.filter((p) => p.status === "pendente").length;
 
   const filtered = useMemo(
-    () => filter === "todos" ? pedidos : pedidos.filter((p) => p.status === filter),
-    [pedidos, filter],
+    () => (filter === "todos" ? pedidosHoje : pedidosHoje.filter((p) => p.status === filter)),
+    [pedidosHoje, filter],
   );
 
-  // Optimistic update helper
   const patchLocal = (id: number, patch: Partial<Pedido>) =>
     setPedidos((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
@@ -183,9 +199,8 @@ function Dashboard() {
     <div className="min-h-screen bg-[var(--gradient-surface)]">
       <Toaster position="top-right" richColors />
 
-      {/* Header */}
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="size-10 rounded-xl bg-[var(--gradient-primary)] grid place-items-center shadow-[var(--shadow-glow)]">
               <Flame className="size-5 text-primary-foreground" />
@@ -194,90 +209,125 @@ function Dashboard() {
               <h1 className="text-xl font-bold leading-tight">Burger Dashboard</h1>
               <p className="text-xs text-muted-foreground" suppressHydrationWarning>
                 {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+                {diaJaFechado && " · Dia encerrado"}
               </p>
             </div>
           </div>
-          <Button onClick={() => { setEditing(null); setFormOpen(true); }} size="lg" className="shadow-[var(--shadow-glow)]">
-            <Plus className="size-4" /> Novo pedido
-          </Button>
+          <div className="flex items-center gap-2">
+            <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as ViewTab)}>
+              <TabsList>
+                <TabsTrigger value="pedidos">Pedidos do dia</TabsTrigger>
+                <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Button
+              onClick={() => { setEditing(null); setFormOpen(true); }}
+              size="lg"
+              className="shadow-[var(--shadow-glow)]"
+              disabled={diaJaFechado}
+              title={diaJaFechado ? "Encerre o dia amanhã para novos pedidos" : undefined}
+            >
+              <Plus className="size-4" /> Novo pedido
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Stats */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((s) => (
-            <Card key={s.label} className="p-5 border-border/60">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{s.label}</p>
-                  <p className="text-3xl font-bold mt-2 tabular-nums">{s.value}</p>
-                </div>
-                <div className={`size-10 rounded-xl grid place-items-center ${s.bg}`}>
-                  <s.icon className={`size-5 ${s.accent}`} />
-                </div>
+        {viewTab === "pedidos" && (
+          <>
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {stats.map((s) => (
+                <Card key={s.label} className="p-5 border-border/60">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{s.label}</p>
+                      <p className="text-3xl font-bold mt-2 tabular-nums">{s.value}</p>
+                    </div>
+                    <div className={`size-10 rounded-xl grid place-items-center ${s.bg}`}>
+                      <s.icon className={`size-5 ${s.accent}`} />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </section>
+
+            <section className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">Pedidos de hoje</h2>
+                <p className="text-sm text-muted-foreground">
+                  {filtered.length} {filtered.length === 1 ? "pedido" : "pedidos"}
+                  {pendentes > 0 && filter === "todos" && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-warning font-medium">
+                      • {pendentes} aguardando
+                    </span>
+                  )}
+                </p>
               </div>
-            </Card>
-          ))}
-        </section>
+              <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+                <TabsList>
+                  <TabsTrigger value="todos">Todos</TabsTrigger>
+                  <TabsTrigger value="pendente">Pendentes</TabsTrigger>
+                  <TabsTrigger value="em-preparacao">Preparo</TabsTrigger>
+                  <TabsTrigger value="entregue">Entregues</TabsTrigger>
+                  <TabsTrigger value="cancelado">Cancelados</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </section>
 
-        {/* Filters */}
-        <section className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">Pedidos</h2>
-            <p className="text-sm text-muted-foreground">
-              {filtered.length} {filtered.length === 1 ? "pedido" : "pedidos"}
-              {pendentes > 0 && filter === "todos" && (
-                <span className="ml-2 inline-flex items-center gap-1 text-warning font-medium">
-                  • {pendentes} aguardando
-                </span>
-              )}
-            </p>
-          </div>
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-            <TabsList>
-              <TabsTrigger value="todos">Todos</TabsTrigger>
-              <TabsTrigger value="pendente">Pendentes</TabsTrigger>
-              <TabsTrigger value="em-preparacao">Preparo</TabsTrigger>
-              <TabsTrigger value="entregue">Entregues</TabsTrigger>
-              <TabsTrigger value="cancelado">Cancelados</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </section>
+            {configError ? (
+              <Card className="p-8 border-destructive/40 bg-destructive/5">
+                <h3 className="font-semibold text-lg text-destructive">Configuração pendente</h3>
+                <p className="text-sm text-muted-foreground mt-2">{configError}</p>
+              </Card>
+            ) : loading ? (
+              <p className="text-center text-muted-foreground py-20">Carregando...</p>
+            ) : diaJaFechado ? (
+              <Card className="p-12 text-center border-dashed">
+                <h3 className="font-semibold text-lg">Dia encerrado</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  O fechamento de hoje já foi registrado. Amanhã a lista recomeça vazia.
+                </p>
+                <Button className="mt-4" variant="outline" onClick={() => setViewTab("relatorios")}>
+                  Ver relatórios
+                </Button>
+              </Card>
+            ) : filtered.length === 0 ? (
+              <Card className="p-16 text-center border-dashed">
+                <div className="size-14 rounded-2xl bg-muted mx-auto grid place-items-center mb-4">
+                  <ClipboardList className="size-6 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-lg">Nenhum pedido hoje</h3>
+                <p className="text-sm text-muted-foreground mt-1 mb-5">
+                  Crie o primeiro pedido do dia ou encerre o dia na aba Relatórios.
+                </p>
+                <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
+                  <Plus className="size-4" /> Novo pedido
+                </Button>
+              </Card>
+            ) : (
+              <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filtered.map((p) => (
+                  <PedidoCard
+                    key={p.id}
+                    pedido={p}
+                    onStatusChange={handleStatus}
+                    onTogglePago={handleTogglePago}
+                    onEdit={(ped) => { setEditing(ped); setFormOpen(true); }}
+                  />
+                ))}
+              </section>
+            )}
+          </>
+        )}
 
-        {/* Lista */}
-        {configError ? (
-          <Card className="p-8 border-destructive/40 bg-destructive/5">
-            <h3 className="font-semibold text-lg text-destructive">Configuração pendente</h3>
-            <p className="text-sm text-muted-foreground mt-2">{configError}</p>
-          </Card>
-        ) : loading ? (
-          <p className="text-center text-muted-foreground py-20">Carregando...</p>
-        ) : filtered.length === 0 ? (
-          <Card className="p-16 text-center border-dashed">
-            <div className="size-14 rounded-2xl bg-muted mx-auto grid place-items-center mb-4">
-              <ClipboardList className="size-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold text-lg">Nenhum pedido por aqui</h3>
-            <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Crie o primeiro pedido para começar a registrar suas vendas.
-            </p>
-            <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
-              <Plus className="size-4" /> Novo pedido
-            </Button>
-          </Card>
-        ) : (
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((p) => (
-              <PedidoCard
-                key={p.id}
-                pedido={p}
-                onStatusChange={handleStatus}
-                onTogglePago={handleTogglePago}
-                onEdit={(ped) => { setEditing(ped); setFormOpen(true); }}
-              />
-            ))}
-          </section>
+        {viewTab === "relatorios" && !configError && (
+          <FechamentoSection
+            pedidosHoje={pedidosHoje}
+            fechamentos={fechamentos}
+            diaJaFechado={diaJaFechado}
+            onFechamentoSalvo={loadFechamentos}
+          />
         )}
       </main>
 
