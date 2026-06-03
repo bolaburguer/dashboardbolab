@@ -264,7 +264,7 @@ function Dashboard() {
               <Flame className="size-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold leading-tight">Burger Dashboard</h1>
+              <h1 className="text-xl font-bold leading-tight">BolaBurger Dashboard</h1>
               <p className="text-xs text-muted-foreground" suppressHydrationWarning>
                 {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
                 {turnoAtivo ? ` · ${formatTurnoHorario(turnoAtivo)}` : " · Turno fechado"}
