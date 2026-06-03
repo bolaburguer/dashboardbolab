@@ -46,6 +46,7 @@ function getWhatsAppMessage(pedido: Pedido) {
   const statusMessage: Record<PedidoStatus, string> = {
     pendente: "recebido",
     "em-preparacao": "em preparacao",
+    "saiu-para-entrega": "saiu para entrega",
     entregue: "entregue",
     cancelado: "cancelado",
   };
@@ -188,10 +189,19 @@ export function PedidoCard({ pedido, onStatusChange, onTogglePago, onEdit }: Pro
           {pedido.status === "em-preparacao" && (
             <Button
               size="sm"
+              className="flex-1 min-w-[140px] bg-info text-info-foreground hover:bg-info/90"
+              onClick={() => onStatusChange(pedido.id, "saiu-para-entrega")}
+            >
+              <Truck className="size-4" /> Saiu p/ entrega
+            </Button>
+          )}
+          {pedido.status === "saiu-para-entrega" && (
+            <Button
+              size="sm"
               className="flex-1 min-w-[120px] bg-success text-success-foreground hover:bg-success/90"
               onClick={() => onStatusChange(pedido.id, "entregue")}
             >
-              <CheckCircle2 className="size-4" /> Entregar
+              <CheckCircle2 className="size-4" /> Entregue
             </Button>
           )}
           {(pedido.status === "entregue" || pedido.status === "cancelado") && (

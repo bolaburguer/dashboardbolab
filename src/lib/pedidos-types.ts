@@ -1,4 +1,9 @@
-export type PedidoStatus = "pendente" | "em-preparacao" | "entregue" | "cancelado";
+export type PedidoStatus =
+  | "pendente"
+  | "em-preparacao"
+  | "saiu-para-entrega"
+  | "entregue"
+  | "cancelado";
 
 export type TipoEntrega = "entrega" | "retirada";
 
@@ -27,28 +32,34 @@ export interface Pedido {
 
 export const TAXA_ENTREGA = 7;
 
-export const STATUS_META: Record<PedidoStatus, { label: string; className: string; dot: string }> = {
-  pendente: {
-    label: "Pendente",
-    className: "bg-muted text-foreground border-border",
-    dot: "bg-foreground/40",
-  },
-  "em-preparacao": {
-    label: "Em preparação",
-    className: "bg-warning/15 text-warning-foreground border-warning/30",
-    dot: "bg-warning",
-  },
-  entregue: {
-    label: "Entregue",
-    className: "bg-success/15 text-success border-success/30",
-    dot: "bg-success",
-  },
-  cancelado: {
-    label: "Cancelado",
-    className: "bg-destructive/10 text-destructive border-destructive/30",
-    dot: "bg-destructive",
-  },
-};
+export const STATUS_META: Record<PedidoStatus, { label: string; className: string; dot: string }> =
+  {
+    pendente: {
+      label: "Pendente",
+      className: "bg-muted text-foreground border-border",
+      dot: "bg-foreground/40",
+    },
+    "em-preparacao": {
+      label: "Em preparação",
+      className: "bg-warning/15 text-warning-foreground border-warning/30",
+      dot: "bg-warning",
+    },
+    "saiu-para-entrega": {
+      label: "Saiu para entrega",
+      className: "bg-info/15 text-info border-info/30",
+      dot: "bg-info",
+    },
+    entregue: {
+      label: "Entregue",
+      className: "bg-success/15 text-success border-success/30",
+      dot: "bg-success",
+    },
+    cancelado: {
+      label: "Cancelado",
+      className: "bg-destructive/10 text-destructive border-destructive/30",
+      dot: "bg-destructive",
+    },
+  };
 
 export const FORMA_PAGAMENTO_META: Record<FormaPagamento, { label: string; short: string }> = {
   pix: { label: "PIX", short: "PIX" },

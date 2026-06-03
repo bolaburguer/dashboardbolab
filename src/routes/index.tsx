@@ -354,6 +354,7 @@ function Dashboard() {
                       <TabsTrigger value="todos">Todos</TabsTrigger>
                       <TabsTrigger value="pendente">Pendentes</TabsTrigger>
                       <TabsTrigger value="em-preparacao">Preparo</TabsTrigger>
+                      <TabsTrigger value="saiu-para-entrega">Saiu</TabsTrigger>
                       <TabsTrigger value="entregue">Entregues</TabsTrigger>
                       <TabsTrigger value="cancelado">Cancelados</TabsTrigger>
                     </TabsList>
