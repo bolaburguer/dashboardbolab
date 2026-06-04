@@ -50,7 +50,7 @@ function getWhatsAppMessage(pedido: Pedido) {
     entregue: "entregue",
     cancelado: "cancelado",
   };
-  return `Ola, ${pedido.cliente}! Seu pedido #${pedido.id} na BolaBurger foi atualizado para: ${statusMessage[pedido.status]}.`;
+  return `Ola, ${pedido.cliente}! Seu pedido #${pedido.id} na BolaBurguer foi atualizado para: ${statusMessage[pedido.status]}.`;
 }
 
 function getWhatsAppUrl(pedido: Pedido) {

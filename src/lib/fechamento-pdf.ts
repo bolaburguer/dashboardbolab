@@ -80,7 +80,7 @@ export function downloadFechamentoPdf(fechamento: FechamentoDiario) {
     8,
   );
 
-  doc.save(`fechamento-${fechamento.data}-bolaburger.pdf`);
+  doc.save(`fechamento-${fechamento.data}-bolaburguer.pdf`);
 }
 
 export function downloadPeriodoPdf(
