@@ -6,7 +6,7 @@ import { formatBRL } from "@/lib/pedidos-types";
 import { FORMA_PAGAMENTO_META, STATUS_META } from "@/lib/pedidos-types";
 import type { FormaPagamento, PedidoStatus } from "@/lib/pedidos-types";
 
-const STORE = "Bola Burger";
+const STORE = "Bola Burguer";
 
 function statusLabel(status: string) {
   return STATUS_META[status as PedidoStatus]?.label ?? status;
