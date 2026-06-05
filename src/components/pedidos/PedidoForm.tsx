@@ -3,6 +3,7 @@ import { Plus, Trash2, Truck, Store, Wallet, CreditCard, QrCode } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
@@ -26,7 +27,7 @@ interface Props {
   }) => Promise<void> | void;
 }
 
-const emptyItem = (): PedidoItem => ({ nome: "", quantidade: 1, preco: 0 });
+const emptyItem = (): PedidoItem => ({ nome: "", quantidade: 1, preco: 0, observacao: "" });
 
 const FORMAS: { value: FormaPagamento; label: string; icon: typeof Wallet }[] = [
   { value: "pix", label: "PIX", icon: QrCode },
@@ -71,7 +72,13 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
         cliente: cliente.trim(),
         telefone: telefone.trim(),
         endereco: endereco.trim(),
-        itens: itens.filter((i) => i.nome.trim()),
+        itens: itens
+          .filter((i) => i.nome.trim())
+          .map((i) => ({
+            ...i,
+            nome: i.nome.trim(),
+            observacao: i.observacao?.trim() || undefined,
+          })),
         total,
         tipo_entrega: tipoEntrega,
         taxa_entrega: taxa,
@@ -185,26 +192,37 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
 
             <div className="space-y-2">
               {itens.map((it, i) => (
-                <div key={i} className="grid grid-cols-[1fr_80px_110px_auto] gap-2 items-end p-3 rounded-lg border bg-muted/30">
-                  <div className="grid gap-1">
-                    <Label className="text-xs text-muted-foreground">Nome</Label>
-                    <Input value={it.nome} onChange={(e) => updateItem(i, { nome: e.target.value })} placeholder="Bola Classic" />
+                <div key={i} className="grid gap-3 p-3 rounded-lg border bg-muted/30">
+                  <div className="grid grid-cols-[1fr_80px_110px_auto] gap-2 items-end">
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">Nome</Label>
+                      <Input value={it.nome} onChange={(e) => updateItem(i, { nome: e.target.value })} placeholder="Bola Classic" />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">Qtd</Label>
+                      <Input type="number" min={1} value={it.quantidade}
+                        onChange={(e) => updateItem(i, { quantidade: Math.max(1, Number(e.target.value) || 1) })} />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">Preço un.</Label>
+                      <Input type="number" min={0} step="0.01" value={it.preco}
+                        onChange={(e) => updateItem(i, { preco: Number(e.target.value) || 0 })} />
+                    </div>
+                    <Button type="button" size="icon" variant="ghost"
+                      onClick={() => setItens((a) => a.filter((_, idx) => idx !== i))}
+                      disabled={itens.length === 1}>
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
                   </div>
                   <div className="grid gap-1">
-                    <Label className="text-xs text-muted-foreground">Qtd</Label>
-                    <Input type="number" min={1} value={it.quantidade}
-                      onChange={(e) => updateItem(i, { quantidade: Math.max(1, Number(e.target.value) || 1) })} />
+                    <Label className="text-xs text-muted-foreground">Observação</Label>
+                    <Textarea
+                      value={it.observacao ?? ""}
+                      onChange={(e) => updateItem(i, { observacao: e.target.value })}
+                      placeholder="Ex: sem cebola, ponto da carne, molho separado"
+                      className="min-h-16 resize-none"
+                    />
                   </div>
-                  <div className="grid gap-1">
-                    <Label className="text-xs text-muted-foreground">Preço un.</Label>
-                    <Input type="number" min={0} step="0.01" value={it.preco}
-                      onChange={(e) => updateItem(i, { preco: Number(e.target.value) || 0 })} />
-                  </div>
-                  <Button type="button" size="icon" variant="ghost"
-                    onClick={() => setItens((a) => a.filter((_, idx) => idx !== i))}
-                    disabled={itens.length === 1}>
-                    <Trash2 className="size-4 text-destructive" />
-                  </Button>
                 </div>
               ))}
             </div>

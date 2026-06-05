@@ -13,6 +13,7 @@ export interface PedidoItem {
   nome: string;
   quantidade: number;
   preco: number;
+  observacao?: string;
 }
 
 export interface Pedido {

@@ -12,6 +12,12 @@ export function printPedido(pedido: Pedido, nomeLoja = "Burger Dashboard") {
       <td class="nome">${escapeHtml(it.nome)}</td>
       <td class="val">${formatBRL(it.preco * it.quantidade)}</td>
     </tr>
+    ${it.observacao?.trim() ? `
+      <tr>
+        <td class="qtd"></td>
+        <td class="obs" colspan="2">Obs: ${escapeHtml(it.observacao)}</td>
+      </tr>
+    ` : ""}
   `).join("");
 
   const taxaHtml = pedido.taxa_entrega > 0 ? `
@@ -47,6 +53,7 @@ export function printPedido(pedido: Pedido, nomeLoja = "Burger Dashboard") {
   td { padding: 3px 0; vertical-align: top; }
   td.qtd { width: 28px; font-weight: 700; }
   td.val { text-align: right; white-space: nowrap; }
+  td.obs { color: #444; font-size: 11px; padding-top: 0; }
   .badge { display: inline-block; border: 1px solid #000; padding: 2px 8px; border-radius: 999px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
   .total { font-size: 20px; font-weight: 800; }
   .footer { margin-top: 12px; text-align: center; font-size: 11px; }
