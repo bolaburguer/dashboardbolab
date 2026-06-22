@@ -45,7 +45,7 @@ function getWhatsAppPhone(telefone: string | null) {
 function getWhatsAppMessage(pedido: Pedido) {
   const statusMessage: Record<PedidoStatus, string> = {
     pendente: "recebido",
-    "em-preparacao": "em preparacao",
+    "em-preparacao": "aceito e está em preparação",
     "saiu-para-entrega": "saiu para entrega",
     entregue: "entregue",
     cancelado: "cancelado",
@@ -190,7 +190,7 @@ export function PedidoCard({ pedido, onStatusChange, onTogglePago, onEdit }: Pro
               className="flex-1 min-w-[120px]"
               onClick={() => onStatusChange(pedido.id, "em-preparacao")}
             >
-              <ChefHat className="size-4" /> Preparar
+              <ChefHat className="size-4" /> Aceitar
             </Button>
           )}
           {pedido.status === "em-preparacao" && (

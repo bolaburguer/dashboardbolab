@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Bola Burger
 
 Sistema de pedidos para hamburgueria, com Supabase e deploy no Netlify.
@@ -59,3 +60,6 @@ npm run dev
 - `src/components/fechamento/` — encerrar dia e histórico
 - `src/lib/fechamento-*.ts` — cálculos e PDF
 - `supabase/schema.sql` — schema completo
+=======
+# dashboardbolab
+>>>>>>> 4f2e20ed61459ce37b134e91e473f771000839bf
