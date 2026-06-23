@@ -106,6 +106,10 @@ export function FechamentoSection({
 
       if (turnoError) {
         console.error(turnoError);
+        toast.error(
+          "Fechamento salvo, mas não foi possível encerrar o turno. Verifique as permissões da tabela turnos no Supabase.",
+        );
+        return;
       }
 
       const fechamento = rowToFechamento(data);
@@ -166,7 +170,11 @@ export function FechamentoSection({
                 size="sm"
                 disabled={fechamentosSemana.length === 0}
                 onClick={() =>
-                  downloadPeriodoPdf(`Relatório semanal — ${semana.label}`, semana, fechamentosSemana)
+                  downloadPeriodoPdf(
+                    `Relatório semanal — ${semana.label}`,
+                    semana,
+                    fechamentosSemana,
+                  )
                 }
               >
                 <Download className="size-4" /> PDF
@@ -261,7 +269,9 @@ export function FechamentoSection({
           <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-1">
             <p>
               Faturado:{" "}
-              <strong>{formatBRL(buildFechamentoFromPedidos(hojeKey, pedidosTurno).faturado)}</strong>
+              <strong>
+                {formatBRL(buildFechamentoFromPedidos(hojeKey, pedidosTurno).faturado)}
+              </strong>
             </p>
             <p>Pedidos: {pedidosTurno.length}</p>
           </div>
