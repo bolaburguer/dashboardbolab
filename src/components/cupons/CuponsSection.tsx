@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Percent, Plus, Truck } from "lucide-react";
+import { Percent, Plus, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ export function CuponsSection() {
   const [tipo, setTipo] = useState<TipoDesconto>("percentual");
   const [percentual, setPercentual] = useState(5);
   const [minimoItens, setMinimoItens] = useState(0);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
@@ -88,6 +89,23 @@ export function CuponsSection() {
       return toast.error("Não foi possível atualizar o cupom.");
     }
     toast.success(ativo ? "Cupom ativado no site." : "Cupom desativado.");
+  };
+
+  const excluirCupom = async (cupom: Cupom) => {
+    if (!window.confirm(`Excluir o cupom ${cupom.codigo}? Esta ação não pode ser desfeita.`))
+      return;
+
+    setExcluindoId(cupom.id);
+    const { error } = await supabase.from("cupons").delete().eq("id", cupom.id);
+    setExcluindoId(null);
+
+    if (error) {
+      console.error(error);
+      return toast.error("Não foi possível excluir o cupom.");
+    }
+
+    setCupons((atual) => atual.filter((item) => item.id !== cupom.id));
+    toast.success("Cupom excluído.");
   };
 
   return (
@@ -160,6 +178,9 @@ export function CuponsSection() {
             >
               <option value={0}>Sem mínimo</option>
               <option value={2}>A partir de 2 lanches</option>
+              <option value={3}>A partir de 3 lanches</option>
+              <option value={4}>A partir de 4 lanches</option>
+              <option value={5}>A partir de 5 lanches</option>
             </select>
           </label>
           <div className="flex items-end">
@@ -195,15 +216,28 @@ export function CuponsSection() {
                   : `${cupom.valor_desconto}% de desconto`}
                 {cupom.minimo_itens > 0 ? ` · ${cupom.minimo_itens}+ lanches` : " · sem mínimo"}
               </p>
-              <div className="flex items-center justify-between border-t pt-4">
+              <div className="flex items-center justify-between gap-3 border-t pt-4">
                 <span className="text-sm font-medium">
                   {cupom.ativo ? "Ativo no site" : "Desativado"}
                 </span>
-                <Switch
-                  checked={cupom.ativo}
-                  onCheckedChange={(ativo) => alternarAtivo(cupom, ativo)}
-                  aria-label={`Ativar ${cupom.codigo}`}
-                />
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={cupom.ativo}
+                    onCheckedChange={(ativo) => alternarAtivo(cupom, ativo)}
+                    aria-label={`Ativar ${cupom.codigo}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => excluirCupom(cupom)}
+                    disabled={excluindoId === cupom.id}
+                    aria-label={`Excluir ${cupom.codigo}`}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
