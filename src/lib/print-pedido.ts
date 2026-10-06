@@ -1,7 +1,7 @@
 import type { Pedido } from "./pedidos-types";
 import { formatBRL, FORMA_PAGAMENTO_META } from "./pedidos-types";
 
-export function printPedido(pedido: Pedido, nomeLoja = "Burger Dashboard") {
+export function printPedido(pedido: Pedido, nomeLoja = "Burguer Dashboard") {
   const data = new Date(pedido.created_at).toLocaleString("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
