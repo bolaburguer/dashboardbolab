@@ -157,6 +157,18 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      buscar_clientes_por_telefone: {
+        Args: {
+          p_limite?: number;
+          p_termo: string;
+        };
+        Returns: {
+          cliente: string;
+          telefone: string;
+          telefone_normalizado: string;
+          ultimo_pedido_em: string;
+        }[];
+      };
       buscar_historico_cliente: {
         Args: {
           p_limite?: number;

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { History, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { History, Search, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,13 @@ type HistoricoPedido = {
   created_at: string;
 };
 
+type ClienteEncontrado = {
+  cliente: string;
+  telefone: string;
+  telefone_normalizado: string;
+  ultimo_pedido_em: string;
+};
+
 function resumoItens(itens: unknown) {
   if (!Array.isArray(itens)) return "Itens não informados";
   return itens
@@ -32,12 +39,12 @@ function resumoItens(itens: unknown) {
 export function CustomerHistorySection() {
   const [telefone, setTelefone] = useState("");
   const [historico, setHistorico] = useState<HistoricoPedido[]>([]);
+  const [clientesEncontrados, setClientesEncontrados] = useState<ClienteEncontrado[]>([]);
   const [buscando, setBuscando] = useState(false);
+  const [buscandoClientes, setBuscandoClientes] = useState(false);
   const [buscado, setBuscado] = useState(false);
 
-  const buscar = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const numero = telefone.replace(/\D/g, "");
+  const buscarHistorico = async (numero: string) => {
     if (numero.length < 10) return toast.error("Informe um telefone válido com DDD.");
 
     setBuscando(true);
@@ -54,6 +61,48 @@ export function CustomerHistorySection() {
     }
     setHistorico((data ?? []) as HistoricoPedido[]);
   };
+
+  const buscar = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await buscarHistorico(telefone.replace(/\D/g, ""));
+  };
+
+  const selecionarCliente = async (cliente: ClienteEncontrado) => {
+    setTelefone(cliente.telefone);
+    setClientesEncontrados([]);
+    await buscarHistorico(cliente.telefone_normalizado);
+  };
+
+  useEffect(() => {
+    const termo = telefone.replace(/\D/g, "");
+    if (termo.length < 3) {
+      setClientesEncontrados([]);
+      setBuscandoClientes(false);
+      return;
+    }
+
+    let ativo = true;
+    const timer = window.setTimeout(async () => {
+      setBuscandoClientes(true);
+      const { data, error } = await supabase.rpc("buscar_clientes_por_telefone", {
+        p_termo: termo,
+        p_limite: 10,
+      });
+      if (!ativo) return;
+      setBuscandoClientes(false);
+      if (error) {
+        console.error(error);
+        setClientesEncontrados([]);
+        return;
+      }
+      setClientesEncontrados((data ?? []) as ClienteEncontrado[]);
+    }, 350);
+
+    return () => {
+      ativo = false;
+      window.clearTimeout(timer);
+    };
+  }, [telefone]);
 
   return (
     <section className="space-y-6">
@@ -79,6 +128,39 @@ export function CustomerHistorySection() {
             {buscando ? "Buscando..." : "Buscar histórico"}
           </Button>
         </form>
+        {buscandoClientes && (
+          <p className="mt-3 text-xs text-muted-foreground">Buscando clientes...</p>
+        )}
+        {clientesEncontrados.length > 0 && (
+          <div className="mt-3 overflow-hidden rounded-lg border">
+            <p className="border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+              Clientes encontrados — clique para ver o histórico
+            </p>
+            <div className="divide-y">
+              {clientesEncontrados.map((cliente) => (
+                <button
+                  key={cliente.telefone_normalizado}
+                  type="button"
+                  onClick={() => selecionarCliente(cliente)}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <UserRound className="size-4 shrink-0 text-primary" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{cliente.cliente}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {cliente.telefone}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {new Date(cliente.ultimo_pedido_em).toLocaleDateString("pt-BR")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
 
       {buscado && historico.length === 0 && (
