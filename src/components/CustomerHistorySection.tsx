@@ -75,28 +75,25 @@ export function CustomerHistorySection() {
 
   useEffect(() => {
     const termo = telefone.replace(/\D/g, "");
-    if (termo.length < 3) {
-      setClientesEncontrados([]);
-      setBuscandoClientes(false);
-      return;
-    }
-
     let ativo = true;
-    const timer = window.setTimeout(async () => {
-      setBuscandoClientes(true);
-      const { data, error } = await supabase.rpc("buscar_clientes_por_telefone", {
-        p_termo: termo,
-        p_limite: 10,
-      });
-      if (!ativo) return;
-      setBuscandoClientes(false);
-      if (error) {
-        console.error(error);
-        setClientesEncontrados([]);
-        return;
-      }
-      setClientesEncontrados((data ?? []) as ClienteEncontrado[]);
-    }, 350);
+    const timer = window.setTimeout(
+      async () => {
+        setBuscandoClientes(true);
+        const { data, error } = await supabase.rpc("buscar_clientes_por_telefone", {
+          p_termo: termo,
+          p_limite: 10,
+        });
+        if (!ativo) return;
+        setBuscandoClientes(false);
+        if (error) {
+          console.error(error);
+          setClientesEncontrados([]);
+          return;
+        }
+        setClientesEncontrados((data ?? []) as ClienteEncontrado[]);
+      },
+      termo ? 350 : 0,
+    );
 
     return () => {
       ativo = false;
@@ -134,7 +131,8 @@ export function CustomerHistorySection() {
         {clientesEncontrados.length > 0 && (
           <div className="mt-3 overflow-hidden rounded-lg border">
             <p className="border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
-              Clientes encontrados — clique para ver o histórico
+              {telefone.replace(/\D/g, "") ? "Clientes encontrados" : "Clientes recentes"} — clique
+              para ver o histórico
             </p>
             <div className="divide-y">
               {clientesEncontrados.map((cliente) => (
