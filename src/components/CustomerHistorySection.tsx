@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { History, Search, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,17 @@ export function CustomerHistorySection() {
   const [buscando, setBuscando] = useState(false);
   const [buscandoClientes, setBuscandoClientes] = useState(false);
   const [buscado, setBuscado] = useState(false);
+  const [ordemClientes, setOrdemClientes] = useState<"recentes" | "antigos">("recentes");
+
+  const clientesOrdenados = useMemo(
+    () =>
+      [...clientesEncontrados].sort((a, b) => {
+        const diferenca =
+          new Date(b.ultimo_pedido_em).getTime() - new Date(a.ultimo_pedido_em).getTime();
+        return ordemClientes === "recentes" ? diferenca : -diferenca;
+      }),
+    [clientesEncontrados, ordemClientes],
+  );
 
   const buscarHistorico = async (numero: string) => {
     if (numero.length < 10) return toast.error("Informe um telefone válido com DDD.");
@@ -128,14 +139,29 @@ export function CustomerHistorySection() {
         {buscandoClientes && (
           <p className="mt-3 text-xs text-muted-foreground">Buscando clientes...</p>
         )}
-        {clientesEncontrados.length > 0 && (
+        {clientesOrdenados.length > 0 && (
           <div className="mt-3 overflow-hidden rounded-lg border">
-            <p className="border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
-              {telefone.replace(/\D/g, "") ? "Clientes encontrados" : "Todos os clientes"} — clique
-              para ver o histórico
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {telefone.replace(/\D/g, "") ? "Clientes encontrados" : "Todos os clientes"} —
+                clique para ver o histórico
+              </p>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                Ordenar
+                <select
+                  className="rounded border bg-background px-2 py-1 text-xs text-foreground"
+                  value={ordemClientes}
+                  onChange={(event) =>
+                    setOrdemClientes(event.target.value as "recentes" | "antigos")
+                  }
+                >
+                  <option value="recentes">Mais recente</option>
+                  <option value="antigos">Mais antigo</option>
+                </select>
+              </label>
+            </div>
             <div className="divide-y">
-              {clientesEncontrados.map((cliente) => (
+              {clientesOrdenados.map((cliente) => (
                 <button
                   key={cliente.telefone_normalizado}
                   type="button"
