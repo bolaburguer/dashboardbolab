@@ -5,10 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import type { Pedido, PedidoItem, TipoEntrega, FormaPagamento } from "@/lib/pedidos-types";
-import { formatBRL, TAXA_ENTREGA } from "@/lib/pedidos-types";
+import { formatBRL } from "@/lib/pedidos-types";
 
 interface Props {
   open: boolean;
@@ -35,12 +40,29 @@ const FORMAS: { value: FormaPagamento; label: string; icon: typeof Wallet }[] = 
   { value: "cartao", label: "Cartão", icon: CreditCard },
 ];
 
+const LOCALIDADES_ENTREGA = [
+  { label: "São José do Alegre", value: "sao-jose-do-alegre", fee: 5 },
+  { label: "Foros", value: "foros", fee: 7 },
+  { label: "Pavão", value: "pavao", fee: 7 },
+  { label: "Machado", value: "machado", fee: 15 },
+  { label: "Fundão", value: "fundao", fee: 15 },
+  { label: "Ribeirão", value: "ribeirao", fee: 15 },
+  { label: "Pinhal", value: "pinhal", fee: 15 },
+  { label: "Boqueirão", value: "boqueirao", fee: 30 },
+  { label: "Pinhalzinho", value: "pinhalzinho", fee: 12 },
+  { label: "Mariano 1 ou 2", value: "mariano-1-ou-2", fee: 13 },
+  { label: "Santa Bárbara do Sapucaí", value: "santa-barbara-do-sapucai", fee: 15 },
+] as const;
+
+type LocalidadeEntrega = (typeof LOCALIDADES_ENTREGA)[number]["value"] | "";
+
 export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
   const [endereco, setEndereco] = useState("");
   const [itens, setItens] = useState<PedidoItem[]>([emptyItem()]);
   const [tipoEntrega, setTipoEntrega] = useState<TipoEntrega>("retirada");
+  const [localidadeEntrega, setLocalidadeEntrega] = useState<LocalidadeEntrega>("");
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>("pix");
   const [pago, setPago] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -52,13 +74,22 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
       setEndereco(initial?.endereco ?? "");
       setItens(initial?.itens?.length ? initial.itens : [emptyItem()]);
       setTipoEntrega(initial?.tipo_entrega ?? "retirada");
+      setLocalidadeEntrega(
+        initial?.tipo_entrega === "entrega"
+          ? (LOCALIDADES_ENTREGA.find((localidade) => localidade.fee === initial.taxa_entrega)
+              ?.value ?? "")
+          : "",
+      );
       setFormaPagamento(initial?.forma_pagamento ?? "pix");
       setPago(initial?.pago ?? false);
     }
   }, [open, initial]);
 
   const subtotal = itens.reduce((s, i) => s + i.preco * i.quantidade, 0);
-  const taxa = tipoEntrega === "entrega" ? TAXA_ENTREGA : 0;
+  const localidadeSelecionada = LOCALIDADES_ENTREGA.find(
+    (localidade) => localidade.value === localidadeEntrega,
+  );
+  const taxa = tipoEntrega === "entrega" ? (localidadeSelecionada?.fee ?? 0) : 0;
   const total = subtotal + taxa;
 
   const updateItem = (i: number, patch: Partial<PedidoItem>) =>
@@ -106,16 +137,28 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
         <div className="grid gap-5 py-2">
           <div className="grid gap-2">
             <Label>Cliente *</Label>
-            <Input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Nome do cliente" />
+            <Input
+              value={cliente}
+              onChange={(e) => setCliente(e.target.value)}
+              placeholder="Nome do cliente"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label>Telefone</Label>
-              <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" />
+              <Input
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(11) 99999-9999"
+              />
             </div>
             <div className="grid gap-2">
               <Label>Endereço</Label>
-              <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua, número, bairro" />
+              <Input
+                value={endereco}
+                onChange={(e) => setEndereco(e.target.value)}
+                placeholder="Rua, número, bairro"
+              />
             </div>
           </div>
 
@@ -125,7 +168,10 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setTipoEntrega("retirada")}
+                onClick={() => {
+                  setTipoEntrega("retirada");
+                  setLocalidadeEntrega("");
+                }}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-xl border px-4 py-3 transition-colors ${
                   tipoEntrega === "retirada"
                     ? "border-primary bg-primary/10 text-primary font-semibold"
@@ -143,10 +189,41 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
                     : "border-border bg-muted/40 hover:bg-muted/60"
                 }`}
               >
-                <Truck className="size-4" /> Entrega (+{formatBRL(TAXA_ENTREGA)})
+                <Truck className="size-4" /> Entrega
               </button>
             </div>
           </div>
+
+          {tipoEntrega === "entrega" && (
+            <div className="grid gap-2">
+              <Label>Localidade de entrega *</Label>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {LOCALIDADES_ENTREGA.map((localidade) => {
+                  const selecionada = localidadeEntrega === localidade.value;
+                  return (
+                    <button
+                      key={localidade.value}
+                      type="button"
+                      onClick={() => setLocalidadeEntrega(localidade.value)}
+                      className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
+                        selecionada
+                          ? "border-primary bg-primary/10 font-semibold text-primary"
+                          : "border-border bg-muted/40 hover:bg-muted/60"
+                      }`}
+                    >
+                      <span>{localidade.label}</span>
+                      <span className="tabular-nums">{formatBRL(localidade.fee)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {!localidadeSelecionada && (
+                <p className="text-xs text-muted-foreground">
+                  Escolha a localidade para calcular a taxa de entrega.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Forma de pagamento */}
           <div className="grid gap-2">
@@ -185,7 +262,12 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
           <div className="grid gap-3">
             <div className="flex items-center justify-between">
               <Label className="text-base">Itens do pedido</Label>
-              <Button type="button" size="sm" variant="outline" onClick={() => setItens((a) => [...a, emptyItem()])}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setItens((a) => [...a, emptyItem()])}
+              >
                 <Plus className="size-4 mr-1" /> Item
               </Button>
             </div>
@@ -196,21 +278,40 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
                   <div className="grid grid-cols-[1fr_80px_110px_auto] gap-2 items-end">
                     <div className="grid gap-1">
                       <Label className="text-xs text-muted-foreground">Nome</Label>
-                      <Input value={it.nome} onChange={(e) => updateItem(i, { nome: e.target.value })} placeholder="Bola Classic" />
+                      <Input
+                        value={it.nome}
+                        onChange={(e) => updateItem(i, { nome: e.target.value })}
+                        placeholder="Bola Classic"
+                      />
                     </div>
                     <div className="grid gap-1">
                       <Label className="text-xs text-muted-foreground">Qtd</Label>
-                      <Input type="number" min={1} value={it.quantidade}
-                        onChange={(e) => updateItem(i, { quantidade: Math.max(1, Number(e.target.value) || 1) })} />
+                      <Input
+                        type="number"
+                        min={1}
+                        value={it.quantidade}
+                        onChange={(e) =>
+                          updateItem(i, { quantidade: Math.max(1, Number(e.target.value) || 1) })
+                        }
+                      />
                     </div>
                     <div className="grid gap-1">
                       <Label className="text-xs text-muted-foreground">Preço un.</Label>
-                      <Input type="number" min={0} step="0.01" value={it.preco}
-                        onChange={(e) => updateItem(i, { preco: Number(e.target.value) || 0 })} />
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={it.preco}
+                        onChange={(e) => updateItem(i, { preco: Number(e.target.value) || 0 })}
+                      />
                     </div>
-                    <Button type="button" size="icon" variant="ghost"
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
                       onClick={() => setItens((a) => a.filter((_, idx) => idx !== i))}
-                      disabled={itens.length === 1}>
+                      disabled={itens.length === 1}
+                    >
                       <Trash2 className="size-4 text-destructive" />
                     </Button>
                   </div>
@@ -248,8 +349,15 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving || !cliente.trim()}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              saving || !cliente.trim() || (tipoEntrega === "entrega" && !localidadeSelecionada)
+            }
+          >
             {saving ? "Salvando..." : initial ? "Salvar alterações" : "Criar pedido"}
           </Button>
         </DialogFooter>
