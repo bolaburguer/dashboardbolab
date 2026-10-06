@@ -81,7 +81,7 @@ export function CustomerHistorySection() {
         setBuscandoClientes(true);
         const { data, error } = await supabase.rpc("buscar_clientes_por_telefone", {
           p_termo: termo,
-          p_limite: 10,
+          p_limite: null,
         });
         if (!ativo) return;
         setBuscandoClientes(false);
@@ -131,7 +131,7 @@ export function CustomerHistorySection() {
         {clientesEncontrados.length > 0 && (
           <div className="mt-3 overflow-hidden rounded-lg border">
             <p className="border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
-              {telefone.replace(/\D/g, "") ? "Clientes encontrados" : "Clientes recentes"} — clique
+              {telefone.replace(/\D/g, "") ? "Clientes encontrados" : "Todos os clientes"} — clique
               para ver o histórico
             </p>
             <div className="divide-y">

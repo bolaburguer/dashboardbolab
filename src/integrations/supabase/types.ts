@@ -159,7 +159,7 @@ export type Database = {
     Functions: {
       buscar_clientes_por_telefone: {
         Args: {
-          p_limite?: number;
+          p_limite?: number | null;
           p_termo: string;
         };
         Returns: {
