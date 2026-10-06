@@ -31,6 +31,7 @@ import { formatBRL, STATUS_META } from "@/lib/pedidos-types";
 import { PedidoCard } from "@/components/pedidos/PedidoCard";
 import { PedidoForm } from "@/components/pedidos/PedidoForm";
 import { CuponsSection } from "@/components/cupons/CuponsSection";
+import { CustomerHistorySection } from "@/components/CustomerHistorySection";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -48,7 +49,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Filter = "todos" | PedidoStatus;
-type ViewTab = "pedidos" | "cupons" | "relatorios";
+type ViewTab = "pedidos" | "clientes" | "cupons" | "relatorios";
 
 function Dashboard() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -325,6 +326,7 @@ function Dashboard() {
             <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as ViewTab)}>
               <TabsList>
                 <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
+                <TabsTrigger value="clientes">Clientes</TabsTrigger>
                 <TabsTrigger value="cupons">Cupons</TabsTrigger>
                 <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
               </TabsList>
@@ -480,6 +482,7 @@ function Dashboard() {
         )}
 
         {viewTab === "cupons" && !configError && <CuponsSection />}
+        {viewTab === "clientes" && !configError && <CustomerHistorySection />}
       </main>
 
       <PedidoForm
