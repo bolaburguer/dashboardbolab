@@ -176,3 +176,127 @@ language sql stable security definer set search_path = public as $$
   order by cliente asc, ultimo_pedido_em desc
   limit case when p_limite is null then null else least(greatest(p_limite, 1), 1000) end;
 $$;
+
+
+-- Pix online pelo site (Checkout Integrado da InfinitePay).
+-- O pedido fica aqui até o pagamento ser confirmado; só então entra em public.pedidos,
+-- já com pago = true. Assim o app e o dashboard nunca veem pedido Pix não pago.
+create table if not exists public.pagamentos_pix (
+  id uuid primary key default gen_random_uuid(),
+  pedido jsonb not null,
+  valor_centavos integer not null check (valor_centavos > 0),
+  checkout_url text,
+  pedido_id bigint references public.pedidos(id),
+  transaction_nsu text unique,
+  capture_method text,
+  receipt_url text,
+  pago_em timestamptz,
+  created_at timestamptz not null default now()
+);
+
+-- Sem policies: anon e authenticated não leem nem escrevem. Só o servidor do site,
+-- com a service_role key, acessa esta tabela.
+alter table public.pagamentos_pix enable row level security;
+revoke all on public.pagamentos_pix from anon, authenticated;
+grant all on public.pagamentos_pix to service_role;
+
+-- Cria o pedido a partir de um pagamento já conferido na InfinitePay.
+-- Idempotente: se o webhook e a página de retorno chegarem juntos, o lock da linha
+-- garante um único pedido.
+create or replace function public.confirmar_pagamento_pix(
+  p_id uuid,
+  p_transaction_nsu text,
+  p_capture_method text,
+  p_receipt_url text
+)
+returns bigint
+language plpgsql
+as $$
+declare
+  v_pagamento public.pagamentos_pix%rowtype;
+  v_pedido_id bigint;
+begin
+  select * into v_pagamento from public.pagamentos_pix where id = p_id for update;
+
+  if not found then
+    raise exception 'pagamento % não encontrado', p_id;
+  end if;
+
+  if v_pagamento.pedido_id is not null then
+    return v_pagamento.pedido_id;
+  end if;
+
+  insert into public.pedidos (
+    cliente, telefone, endereco, itens, total, status,
+    tipo_entrega, taxa_entrega, forma_pagamento, pago
+  )
+  values (
+    v_pagamento.pedido->>'cliente',
+    v_pagamento.pedido->>'telefone',
+    v_pagamento.pedido->>'endereco',
+    v_pagamento.pedido->'itens',
+    (v_pagamento.pedido->>'total')::numeric,
+    'pendente',
+    v_pagamento.pedido->>'tipo_entrega',
+    (v_pagamento.pedido->>'taxa_entrega')::numeric,
+    'pix',
+    true
+  )
+  returning id into v_pedido_id;
+
+  update public.pagamentos_pix
+  set pedido_id = v_pedido_id,
+      transaction_nsu = p_transaction_nsu,
+      capture_method = p_capture_method,
+      receipt_url = p_receipt_url,
+      pago_em = now()
+  where id = p_id;
+
+  return v_pedido_id;
+end;
+$$;
+
+-- Funções em public ficam executáveis pela anon key por padrão; esta não pode.
+revoke execute on function public.confirmar_pagamento_pix(uuid, text, text, text)
+  from public, anon, authenticated;
+grant execute on function public.confirmar_pagamento_pix(uuid, text, text, text)
+  to service_role;
+
+-- Histórico de Pix online para o dashboard e o app.
+-- Devolve só os campos da tela, nunca a linha inteira de pagamentos_pix.
+-- Enquanto o dashboard e o app não fazem login, fica liberada para anon, no mesmo nível
+-- de exposição de public.pedidos. Quando houver login, trocar o grant para authenticated.
+create or replace function public.listar_pagamentos_pix(p_de timestamptz, p_ate timestamptz)
+returns table (
+  id uuid,
+  criado_em timestamptz,
+  pago_em timestamptz,
+  status text,
+  valor numeric,
+  cliente text,
+  telefone text,
+  pedido_id bigint,
+  receipt_url text
+)
+language sql stable security definer set search_path = public as $$
+  select
+    p.id,
+    p.created_at,
+    p.pago_em,
+    case
+      when p.pedido_id is not null then 'pago'
+      when p.created_at < now() - interval '1 hour' then 'abandonado'
+      else 'aguardando'
+    end,
+    p.valor_centavos / 100.0,
+    p.pedido->>'cliente',
+    p.pedido->>'telefone',
+    p.pedido_id,
+    p.receipt_url
+  from public.pagamentos_pix p
+  where p.created_at >= p_de and p.created_at < p_ate
+  order by p.created_at desc
+  limit 1000;
+$$;
+
+grant execute on function public.listar_pagamentos_pix(timestamptz, timestamptz) to anon, authenticated;
