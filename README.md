@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Bola Burger
 
 Sistema de pedidos para hamburgueria, com Supabase e deploy no Netlify.
@@ -54,12 +53,16 @@ npm run dev
 
 > Rode `supabase/migrations/20260602000000_turnos.sql` se o projeto já existia antes desta feature.
 
+## Pagamentos Pix online
+
+O site recebe Pix pelo Checkout Integrado da InfinitePay. A aba **Pagamentos** lista os Pix feitos pelo site, com status pago, aguardando ou abandonado (sem pagamento depois de 1 hora).
+
+> Se o projeto já existia, rode `supabase/migrations/20261010000000_pagamentos_pix.sql` e depois `supabase/migrations/20261010000001_listar_pagamentos_pix.sql`.
+
 ## Estrutura
 
 - `src/routes/` — dashboard
 - `src/components/fechamento/` — encerrar dia e histórico
+- `src/components/pagamentos/` — histórico de Pix online
 - `src/lib/fechamento-*.ts` — cálculos e PDF
 - `supabase/schema.sql` — schema completo
-=======
-# dashboardbolab
->>>>>>> 4f2e20ed61459ce37b134e91e473f771000839bf
