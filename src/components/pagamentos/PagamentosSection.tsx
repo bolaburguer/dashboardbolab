@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/pedidos-types";
 
-type PagamentoPix = {
+type PagamentoOnline = {
   id: string;
   criado_em: string;
   pago_em: string | null;
@@ -16,7 +16,11 @@ type PagamentoPix = {
   telefone: string | null;
   pedido_id: number | null;
   receipt_url: string | null;
+  capture_method: string | null;
 };
+
+// O checkout da InfinitePay aceita Pix e cartão; capture_method diz qual foi usado.
+const MEIO_LABEL: Record<string, string> = { pix: "Pix", credit_card: "Cartão" };
 
 const PERIODOS = [
   { value: "hoje", label: "Hoje" },
@@ -60,7 +64,7 @@ function linkWhatsApp(telefone: string | null) {
 export function PagamentosSection() {
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("todos");
-  const [pagamentos, setPagamentos] = useState<PagamentoPix[]>([]);
+  const [pagamentos, setPagamentos] = useState<PagamentoOnline[]>([]);
   const [carregando, setCarregando] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -73,7 +77,7 @@ export function PagamentosSection() {
       toast.error("Não foi possível carregar os pagamentos.");
       return;
     }
-    setPagamentos((data ?? []) as PagamentoPix[]);
+    setPagamentos((data ?? []) as PagamentoOnline[]);
   }, [periodo]);
 
   useEffect(() => {
@@ -82,8 +86,12 @@ export function PagamentosSection() {
 
   const resumo = useMemo(() => {
     const pagos = pagamentos.filter((p) => p.status === "pago");
+    const somar = (lista: PagamentoOnline[]) =>
+      lista.reduce((soma, p) => soma + Number(p.valor), 0);
     return {
-      recebido: pagos.reduce((soma, p) => soma + Number(p.valor), 0),
+      recebido: somar(pagos),
+      recebidoPix: somar(pagos.filter((p) => p.capture_method !== "credit_card")),
+      recebidoCartao: somar(pagos.filter((p) => p.capture_method === "credit_card")),
       pagos: pagos.length,
       gerados: pagamentos.length,
       abandonados: pagamentos.filter((p) => p.status === "abandonado").length,
@@ -97,10 +105,10 @@ export function PagamentosSection() {
     <section className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Pagamentos Pix online</h2>
+          <h2 className="text-2xl font-bold">Pagamentos online</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pix feitos pelo site. O extrato oficial continua sendo o app da InfinitePay (estornos
-            não aparecem aqui).
+            Pix e cartão pagos pelo site. O extrato oficial continua sendo o app da InfinitePay
+            (estornos não aparecem aqui).
           </p>
         </div>
         <Button variant="outline" className="gap-2" onClick={carregar} disabled={carregando}>
@@ -124,15 +132,18 @@ export function PagamentosSection() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="p-5">
-          <p className="text-xs text-muted-foreground">Recebido via Pix</p>
+          <p className="text-xs text-muted-foreground">Recebido online</p>
           <p className="mt-1 text-2xl font-bold text-primary">{formatBRL(resumo.recebido)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pix {formatBRL(resumo.recebidoPix)} · Cartão {formatBRL(resumo.recebidoCartao)}
+          </p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs text-muted-foreground">Pix pagos</p>
+          <p className="text-xs text-muted-foreground">Pagos</p>
           <p className="mt-1 text-2xl font-bold">{resumo.pagos}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs text-muted-foreground">Pix gerados</p>
+          <p className="text-xs text-muted-foreground">Links gerados</p>
           <p className="mt-1 text-2xl font-bold">{resumo.gerados}</p>
         </Card>
         <Card className="p-5">
@@ -156,7 +167,7 @@ export function PagamentosSection() {
 
       {!carregando && filtrados.length === 0 && (
         <Card className="p-10 text-center text-muted-foreground">
-          Nenhum pagamento Pix neste período.
+          Nenhum pagamento online neste período.
         </Card>
       )}
 
@@ -180,6 +191,9 @@ export function PagamentosSection() {
                       minute: "2-digit",
                     })}
                     {pagamento.pedido_id ? ` · Pedido #${pagamento.pedido_id}` : ""}
+                    {pagamento.capture_method && MEIO_LABEL[pagamento.capture_method]
+                      ? ` · ${MEIO_LABEL[pagamento.capture_method]}`
+                      : ""}
                     {pagamento.telefone ? ` · ${pagamento.telefone}` : ""}
                   </p>
                 </div>
