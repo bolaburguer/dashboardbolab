@@ -32,6 +32,7 @@ import { PedidoCard } from "@/components/pedidos/PedidoCard";
 import { PedidoForm } from "@/components/pedidos/PedidoForm";
 import { CuponsSection } from "@/components/cupons/CuponsSection";
 import { CustomerHistorySection } from "@/components/CustomerHistorySection";
+import { PagamentosSection } from "@/components/pagamentos/PagamentosSection";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -49,7 +50,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Filter = "todos" | PedidoStatus;
-type ViewTab = "pedidos" | "clientes" | "cupons" | "relatorios";
+type ViewTab = "pedidos" | "clientes" | "cupons" | "pagamentos" | "relatorios";
 
 function Dashboard() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -328,6 +329,7 @@ function Dashboard() {
                 <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
                 <TabsTrigger value="clientes">Clientes</TabsTrigger>
                 <TabsTrigger value="cupons">Cupons</TabsTrigger>
+                <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
                 <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
               </TabsList>
             </Tabs>
@@ -483,6 +485,7 @@ function Dashboard() {
 
         {viewTab === "cupons" && !configError && <CuponsSection />}
         {viewTab === "clientes" && !configError && <CustomerHistorySection />}
+        {viewTab === "pagamentos" && !configError && <PagamentosSection />}
       </main>
 
       <PedidoForm

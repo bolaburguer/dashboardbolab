@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import type { Pedido, PedidoItem, TipoEntrega, FormaPagamento } from "@/lib/pedidos-types";
 import { formatBRL } from "@/lib/pedidos-types";
+import { CARDAPIO } from "@/lib/cardapio";
 
 interface Props {
   open: boolean;
@@ -275,6 +276,25 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
             <div className="space-y-2">
               {itens.map((it, i) => (
                 <div key={i} className="grid gap-3 p-3 rounded-lg border bg-muted/30">
+                  <div className="grid gap-1">
+                    <Label className="text-xs text-muted-foreground">Selecionar do cardápio</Label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      aria-label={`Selecionar item ${i + 1} do cardápio`}
+                      value={CARDAPIO.find((item) => item.nome === it.nome)?.nome ?? ""}
+                      onChange={(e) => {
+                        const item = CARDAPIO.find((option) => option.nome === e.target.value);
+                        if (item) updateItem(i, { nome: item.nome, preco: item.preco });
+                      }}
+                    >
+                      <option value="">Escolha um item ou preencha abaixo</option>
+                      {CARDAPIO.map((item) => (
+                        <option key={item.nome} value={item.nome}>
+                          {item.nome} — {formatBRL(item.preco)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="grid grid-cols-[1fr_80px_110px_auto] gap-2 items-end">
                     <div className="grid gap-1">
                       <Label className="text-xs text-muted-foreground">Nome</Label>

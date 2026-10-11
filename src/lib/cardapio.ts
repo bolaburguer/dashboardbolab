@@ -1,0 +1,16 @@
+export const CARDAPIO = [
+  { nome: "Bola Salada Bacon", preco: 28.0 },
+  { nome: "Bola Catupiry com Fritas", preco: 25.0 },
+  { nome: "Bola Catupiry com Bacon", preco: 28.0 },
+  { nome: "Bola Bacon Cheddar", preco: 29.0 },
+  { nome: "Bola Mega Triplo", preco: 44.0 },
+  { nome: "Bola Salada", preco: 25.0 },
+  { nome: "Batata Palito 200g", preco: 20.0 },
+  { nome: "Batata Palito 400g", preco: 30.0 },
+  { nome: "Batata Canoa 200g", preco: 20.0 },
+  { nome: "Batata Canoa 400g", preco: 30.0 },
+  { nome: "Coca-Cola 350ml Latinha", preco: 5.0 },
+  { nome: "Coca-Cola 600ml", preco: 7.0 },
+  { nome: "Coca-Cola 1 Litro", preco: 9.0 },
+  { nome: "Coca-Cola 2 Litros", preco: 13.0 },
+] as const;

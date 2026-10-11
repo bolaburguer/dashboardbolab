@@ -157,6 +157,23 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      listar_pagamentos_pix: {
+        Args: {
+          p_ate: string;
+          p_de: string;
+        };
+        Returns: {
+          cliente: string | null;
+          criado_em: string;
+          id: string;
+          pago_em: string | null;
+          pedido_id: number | null;
+          receipt_url: string | null;
+          status: string;
+          telefone: string | null;
+          valor: number;
+        }[];
+      };
       buscar_clientes_por_telefone: {
         Args: {
           p_limite?: number | null;
