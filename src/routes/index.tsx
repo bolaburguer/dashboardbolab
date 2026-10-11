@@ -9,6 +9,7 @@ import {
   Flame,
   CircleDashed,
   PlayCircle,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -33,6 +34,7 @@ import { PedidoForm } from "@/components/pedidos/PedidoForm";
 import { CuponsSection } from "@/components/cupons/CuponsSection";
 import { CustomerHistorySection } from "@/components/CustomerHistorySection";
 import { PagamentosSection } from "@/components/pagamentos/PagamentosSection";
+import { AuthGate } from "@/components/auth/AuthGate";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -46,8 +48,16 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: Dashboard,
+  component: DashboardPage,
 });
+
+function DashboardPage() {
+  return (
+    <AuthGate>
+      <Dashboard />
+    </AuthGate>
+  );
+}
 
 type Filter = "todos" | PedidoStatus;
 type ViewTab = "pedidos" | "clientes" | "cupons" | "pagamentos" | "relatorios";
@@ -355,6 +365,14 @@ function Dashboard() {
                 <Plus className="size-4" /> Novo pedido
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="lg"
+              className="gap-2"
+              onClick={() => void supabase.auth.signOut()}
+            >
+              <LogOut className="size-4" /> Sair
+            </Button>
           </div>
         </div>
       </header>
