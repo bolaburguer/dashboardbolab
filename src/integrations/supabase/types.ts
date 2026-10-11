@@ -41,6 +41,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      equipe: {
+        Row: {
+          created_at: string;
+          nome: string;
+          papel: "dono" | "dev" | "atendente";
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          nome: string;
+          papel: "dono" | "dev" | "atendente";
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          nome?: string;
+          papel?: "dono" | "dev" | "atendente";
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       fechamentos_diarios: {
         Row: {
           a_receber: number;
@@ -157,6 +178,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      eh_equipe: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
       listar_pagamentos_pix: {
         Args: {
           p_ate: string;
