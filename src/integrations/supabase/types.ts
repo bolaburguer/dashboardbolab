@@ -163,6 +163,7 @@ export type Database = {
           p_de: string;
         };
         Returns: {
+          capture_method: string | null;
           cliente: string | null;
           criado_em: string;
           id: string;

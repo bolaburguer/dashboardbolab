@@ -178,9 +178,10 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 
--- Pix online pelo site (Checkout Integrado da InfinitePay).
+-- Pagamento online pelo site (Checkout Integrado da InfinitePay), por Pix ou cartão.
 -- O pedido fica aqui até o pagamento ser confirmado; só então entra em public.pedidos,
--- já com pago = true. Assim o app e o dashboard nunca veem pedido Pix não pago.
+-- já com pago = true. Assim o app e o dashboard nunca veem pedido online não pago.
+-- O nome "pix" ficou do início; o meio usado fica em capture_method ('pix' ou 'credit_card').
 create table if not exists public.pagamentos_pix (
   id uuid primary key default gen_random_uuid(),
   pedido jsonb not null,
@@ -239,7 +240,7 @@ begin
     'pendente',
     v_pagamento.pedido->>'tipo_entrega',
     (v_pagamento.pedido->>'taxa_entrega')::numeric,
-    'pix',
+    case when p_capture_method = 'credit_card' then 'cartao' else 'pix' end,
     true
   )
   returning id into v_pedido_id;
@@ -262,7 +263,7 @@ revoke execute on function public.confirmar_pagamento_pix(uuid, text, text, text
 grant execute on function public.confirmar_pagamento_pix(uuid, text, text, text)
   to service_role;
 
--- Histórico de Pix online para o dashboard e o app.
+-- Histórico de pagamentos online para o dashboard e o app.
 -- Devolve só os campos da tela, nunca a linha inteira de pagamentos_pix.
 -- Enquanto o dashboard e o app não fazem login, fica liberada para anon, no mesmo nível
 -- de exposição de public.pedidos. Quando houver login, trocar o grant para authenticated.
@@ -276,7 +277,8 @@ returns table (
   cliente text,
   telefone text,
   pedido_id bigint,
-  receipt_url text
+  receipt_url text,
+  capture_method text
 )
 language sql stable security definer set search_path = public as $$
   select
@@ -292,7 +294,8 @@ language sql stable security definer set search_path = public as $$
     p.pedido->>'cliente',
     p.pedido->>'telefone',
     p.pedido_id,
-    p.receipt_url
+    p.receipt_url,
+    p.capture_method
   from public.pagamentos_pix p
   where p.created_at >= p_de and p.created_at < p_ate
   order by p.created_at desc

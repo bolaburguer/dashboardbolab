@@ -53,16 +53,18 @@ npm run dev
 
 > Rode `supabase/migrations/20260602000000_turnos.sql` se o projeto já existia antes desta feature.
 
-## Pagamentos Pix online
+## Pagamentos online
 
-O site recebe Pix pelo Checkout Integrado da InfinitePay. A aba **Pagamentos** lista os Pix feitos pelo site, com status pago, aguardando ou abandonado (sem pagamento depois de 1 hora).
+O site recebe Pix e cartão de crédito pelo Checkout Integrado da InfinitePay. A aba **Pagamentos** lista os pagamentos feitos pelo site, com o meio usado (Pix ou cartão) e o status pago, aguardando ou abandonado (sem pagamento depois de 1 hora). O pedido entra no dashboard e no app já pago, com a forma de pagamento Pix ou Cartão conforme o que o cliente escolheu no checkout.
 
-> Se o projeto já existia, rode `supabase/migrations/20261010000000_pagamentos_pix.sql` e depois `supabase/migrations/20261010000001_listar_pagamentos_pix.sql`.
+A tabela `pagamentos_pix` e as funções `confirmar_pagamento_pix` e `listar_pagamentos_pix` guardam pagamentos dos dois meios. O nome ficou do início, quando só havia Pix.
+
+> Se o projeto já existia, rode em ordem `supabase/migrations/20261010000000_pagamentos_pix.sql`, `supabase/migrations/20261010000001_listar_pagamentos_pix.sql` e `supabase/migrations/20261011000000_pagamento_online_cartao.sql`.
 
 ## Estrutura
 
 - `src/routes/` — dashboard
 - `src/components/fechamento/` — encerrar dia e histórico
-- `src/components/pagamentos/` — histórico de Pix online
+- `src/components/pagamentos/` — histórico de pagamentos online
 - `src/lib/fechamento-*.ts` — cálculos e PDF
 - `supabase/schema.sql` — schema completo
