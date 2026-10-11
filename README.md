@@ -38,6 +38,12 @@ npm run dev
    - `SUPABASE_PUBLISHABLE_KEY`
 3. **Deploys → Trigger deploy** após salvar as variáveis.
 
+## Pedido manual e hambúrguer adicional
+
+No **Novo pedido**, cada item pode ser escolhido do cardápio (`src/lib/cardapio.ts`), que já preenche nome e preço. Nos hambúrgueres aparece a opção **Hambúrguer adicional (+R$ 6,00 por unidade)**, igual à do site: ela soma o valor ao preço do item e escreve na observação o mesmo texto que o site grava ("Adicional: 1 hambúrguer (+R$ 6,00 por unidade)"). Assim o card e a impressão saem iguais para pedido do site e pedido manual.
+
+O cardápio e o preço do adicional também existem no site (`src/lib/menu-data.ts`) e no app (`lib/src/cardapio.dart`). Se um preço mudar, altere nos três.
+
 ## Login da equipe
 
 O dashboard e o app pedem e-mail e senha (Supabase Auth). Só entra quem tiver uma linha em `public.equipe`, com o papel `dono`, `dev` ou `atendente`. Por enquanto os três papéis têm acesso total. O papel fica guardado para limitar o atendente no futuro.

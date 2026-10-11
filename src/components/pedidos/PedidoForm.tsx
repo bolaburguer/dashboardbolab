@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,13 @@ import {
 } from "@/components/ui/dialog";
 import type { Pedido, PedidoItem, TipoEntrega, FormaPagamento } from "@/lib/pedidos-types";
 import { formatBRL } from "@/lib/pedidos-types";
-import { CARDAPIO } from "@/lib/cardapio";
+import {
+  CARDAPIO,
+  EXTRA_BURGER_PRICE,
+  ehHamburguer,
+  observacaoComAdicional,
+  temAdicional,
+} from "@/lib/cardapio";
 
 interface Props {
   open: boolean;
@@ -95,6 +102,19 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
 
   const updateItem = (i: number, patch: Partial<PedidoItem>) =>
     setItens((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+
+  // Soma ou tira o preço do adicional e escreve a observação no mesmo formato do site.
+  const alternarAdicional = (i: number, adicional: boolean) =>
+    setItens((arr) =>
+      arr.map((x, idx) => {
+        if (idx !== i || temAdicional(x.observacao) === adicional) return x;
+        return {
+          ...x,
+          preco: x.preco + (adicional ? EXTRA_BURGER_PRICE : -EXTRA_BURGER_PRICE),
+          observacao: observacaoComAdicional(x.observacao, adicional),
+        };
+      }),
+    );
 
   const handleSubmit = async () => {
     if (!cliente.trim() || itens.length === 0) return;
@@ -284,7 +304,15 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
                       value={CARDAPIO.find((item) => item.nome === it.nome)?.nome ?? ""}
                       onChange={(e) => {
                         const item = CARDAPIO.find((option) => option.nome === e.target.value);
-                        if (item) updateItem(i, { nome: item.nome, preco: item.preco });
+                        if (!item) return;
+                        // Trocando de lanche, o adicional continua; trocando para outra coisa, sai.
+                        const adicional =
+                          temAdicional(it.observacao) && item.categoria === "Hambúrgueres";
+                        updateItem(i, {
+                          nome: item.nome,
+                          preco: item.preco + (adicional ? EXTRA_BURGER_PRICE : 0),
+                          observacao: observacaoComAdicional(it.observacao, adicional),
+                        });
                       }}
                     >
                       <option value="">Escolha um item ou preencha abaixo</option>
@@ -295,6 +323,15 @@ export function PedidoForm({ open, onOpenChange, initial, onSubmit }: Props) {
                       ))}
                     </select>
                   </div>
+                  {ehHamburguer(it.nome) && (
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={temAdicional(it.observacao)}
+                        onCheckedChange={(checked) => alternarAdicional(i, checked === true)}
+                      />
+                      Hambúrguer adicional (+{formatBRL(EXTRA_BURGER_PRICE)} por unidade)
+                    </label>
+                  )}
                   <div className="grid grid-cols-[1fr_80px_110px_auto] gap-2 items-end">
                     <div className="grid gap-1">
                       <Label className="text-xs text-muted-foreground">Nome</Label>
