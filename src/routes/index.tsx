@@ -70,6 +70,47 @@ function Dashboard() {
   const [iniciandoDia, setIniciandoDia] = useState(false);
   const [filter, setFilter] = useState<Filter>("todos");
   const [viewTab, setViewTab] = useState<ViewTab>("pedidos");
+  const [sitePausado, setSitePausado] = useState<boolean | null>(null);
+  const [alterandoPausa, setAlterandoPausa] = useState(false);
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    let active = true;
+    const load = async () => {
+      try {
+        const { data, error } = await supabase.rpc("site_pausado");
+        if (active) setSitePausado(error ? null : data);
+      } catch {
+        if (active) setSitePausado(null);
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 10000);
+    window.addEventListener("focus", load);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", load);
+    };
+  }, []);
+  const togglePausa = async () => {
+    if (sitePausado === null || alterandoPausa) return;
+    setAlterandoPausa(true);
+    try {
+      const pausado = !sitePausado;
+      const { error } = await supabase.rpc("definir_pausa_site", { p_pausado: pausado });
+      if (error) throw error;
+      setSitePausado(pausado);
+      toast.success(
+        pausado
+          ? "Pedidos do site pausados. Cadastro manual disponível."
+          : "Pausa removida. O site recebe pedidos enquanto o turno estiver aberto.",
+      );
+    } catch {
+      toast.error("Não foi possível alterar a pausa. Confira a migration de pausa no Supabase.");
+    } finally {
+      setAlterandoPausa(false);
+    }
+  };
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Pedido | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -343,6 +384,19 @@ function Dashboard() {
                 <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
               </TabsList>
             </Tabs>
+            <Button
+              variant="outline"
+              onClick={togglePausa}
+              disabled={sitePausado === null || alterandoPausa}
+            >
+              {alterandoPausa
+                ? "Salvando…"
+                : sitePausado === null
+                  ? "Pausa do site indisponível"
+                  : sitePausado
+                    ? "Despausar pedidos do site"
+                    : "Pausar pedidos do site"}
+            </Button>
             {!turnoAtivo ? (
               <Button
                 size="lg"
@@ -378,6 +432,12 @@ function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {sitePausado && (
+          <Card role="status" className="p-4 border-warning/50">
+            Pedidos do site pausados. Você pode continuar registrando pedidos manualmente. A pausa
+            permanece até clicar em despausar.
+          </Card>
+        )}
         {viewTab === "pedidos" && (
           <>
             {!turnoAtivo && !configError && !loading && (
