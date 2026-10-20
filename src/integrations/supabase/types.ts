@@ -178,6 +178,9 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      pedidos_site_disponiveis: { Args: Record<string, never>; Returns: boolean };
+      site_pausado: { Args: Record<string, never>; Returns: boolean };
+      definir_pausa_site: { Args: { p_pausado: boolean }; Returns: undefined };
       eh_equipe: {
         Args: Record<string, never>;
         Returns: boolean;
