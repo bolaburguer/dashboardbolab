@@ -13,8 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FechamentoDetalhes } from "./FechamentoDetalhes";
-import { downloadFechamentoExcel, downloadPeriodoExcel } from "@/lib/fechamento-export";
+import { FechamentoDetalhes } from "@/components/fechamento/FechamentoDetalhes";
+import {
+  downloadFechamentoExcel,
+  downloadPeriodoExcel,
+} from "@/lib/fechamento-export";
 import { reportSummary } from "@/lib/fechamento-report";
 import type { CaixaFechamento } from "@/lib/fechamento-types";
 import {
@@ -26,7 +29,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { downloadFechamentoPdf, downloadPeriodoPdf } from "@/lib/fechamento-pdf";
+import {
+  downloadFechamentoPdf,
+  downloadPeriodoPdf,
+} from "@/lib/fechamento-pdf";
 import {
   formatDateBR,
   fechamentosNoPeriodo,
@@ -74,10 +80,13 @@ export function FechamentoSection({
   });
   const [exportando, setExportando] = useState(false);
   const caixa: CaixaFechamento = {
-    saldo_inicial: caixaInput.saldo_inicial === "" ? null : Number(caixaInput.saldo_inicial),
+    saldo_inicial:
+      caixaInput.saldo_inicial === "" ? null : Number(caixaInput.saldo_inicial),
     saidas: caixaInput.saidas === "" ? null : Number(caixaInput.saidas),
     dinheiro_contado:
-      caixaInput.dinheiro_contado === "" ? null : Number(caixaInput.dinheiro_contado),
+      caixaInput.dinheiro_contado === ""
+        ? null
+        : Number(caixaInput.dinheiro_contado),
     responsavel: caixaInput.responsavel.trim(),
     observacoes: caixaInput.observacoes.trim(),
   };
@@ -137,10 +146,14 @@ export function FechamentoSection({
         toast.error("Informe o responsável e valores de caixa válidos.");
         return;
       }
-      const { data, error } = await supabase.rpc("encerrar_turno_com_relatorio", {
-        p_turno_id: turnoAtivo.id,
-        p_caixa: caixa as unknown as import("@/integrations/supabase/types").Json,
-      });
+      const { data, error } = await supabase.rpc(
+        "encerrar_turno_com_relatorio",
+        {
+          p_turno_id: turnoAtivo.id,
+          p_caixa:
+            caixa as unknown as import("@/integrations/supabase/types").Json,
+        },
+      );
 
       if (error) {
         toast.error("Não foi possível encerrar: " + error.message);
@@ -148,9 +161,13 @@ export function FechamentoSection({
         return;
       }
 
-      const fechamento = rowToFechamento(data as unknown as Parameters<typeof rowToFechamento>[0]);
+      const fechamento = rowToFechamento(
+        data as unknown as Parameters<typeof rowToFechamento>[0],
+      );
       setSelecionado(fechamento);
-      toast.success("Dia encerrado. Relatório disponível para baixar em PDF ou Excel.");
+      toast.success(
+        "Dia encerrado. Relatório disponível para baixar em PDF ou Excel.",
+      );
       onFechamentoSalvo();
       setCaixaInput({
         saldo_inicial: "",
@@ -161,7 +178,9 @@ export function FechamentoSection({
       });
     } catch (e) {
       console.error(e);
-      toast.error("Falha ao encerrar o turno. Confira a conexão e tente novamente.");
+      toast.error(
+        "Falha ao encerrar o turno. Confira a conexão e tente novamente.",
+      );
     } finally {
       setSalvando(false);
       setConfirmOpen(false);
@@ -185,12 +204,21 @@ export function FechamentoSection({
           </div>
           <div className="flex flex-wrap gap-2">
             {!turnoAtivo ? (
-              <Button size="lg" className="gap-2" onClick={onIniciarDia} disabled={iniciandoDia}>
+              <Button
+                size="lg"
+                className="gap-2"
+                onClick={onIniciarDia}
+                disabled={iniciandoDia}
+              >
                 <PlayCircle className="size-4" />
                 {iniciandoDia ? "Abrindo…" : "Iniciar dia"}
               </Button>
             ) : (
-              <Button size="lg" className="gap-2" onClick={() => setConfirmOpen(true)}>
+              <Button
+                size="lg"
+                className="gap-2"
+                onClick={() => setConfirmOpen(true)}
+              >
                 <CalendarCheck className="size-4" /> Encerrar dia
               </Button>
             )}
@@ -205,7 +233,8 @@ export function FechamentoSection({
                 Vendido <strong>{formatBRL(resumoTurno.faturado)}</strong>
               </p>
               <p>
-                Pago no sistema <strong>{formatBRL(resumoTurno.recebido)}</strong>
+                Pago no sistema{" "}
+                <strong>{formatBRL(resumoTurno.recebido)}</strong>
               </p>
               <p className="text-orange-600">
                 Pendente <strong>{formatBRL(resumoTurno.pendente)}</strong>
@@ -226,11 +255,15 @@ export function FechamentoSection({
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                   <CalendarRange className="size-3.5" /> Semanal
                 </p>
-                <p className="text-2xl font-bold mt-2 tabular-nums">{formatBRL(semana.faturado)}</p>
-                <p className="text-xs text-muted-foreground mt-1 capitalize">{semana.label}</p>
+                <p className="text-2xl font-bold mt-2 tabular-nums">
+                  {formatBRL(semana.faturado)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 capitalize">
+                  {semana.label}
+                </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Recebido {formatBRL(semana.recebido)} · {semana.total_pedidos} pedidos ·{" "}
-                  {semana.dias_registrados} fechamento(s)
+                  Recebido {formatBRL(semana.recebido)} · {semana.total_pedidos}{" "}
+                  pedidos · {semana.dias_registrados} fechamento(s)
                 </p>
               </div>
               <Button
@@ -252,7 +285,10 @@ export function FechamentoSection({
                 size="sm"
                 disabled={exportando || !fechamentosSemana.length}
                 onClick={() =>
-                  void excelPeriodo(`Relatório semanal - ${semana.label}`, fechamentosSemana)
+                  void excelPeriodo(
+                    `Relatório semanal - ${semana.label}`,
+                    fechamentosSemana,
+                  )
                 }
               >
                 Excel
@@ -266,11 +302,15 @@ export function FechamentoSection({
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                   <CalendarRange className="size-3.5" /> Mensal
                 </p>
-                <p className="text-2xl font-bold mt-2 tabular-nums">{formatBRL(mes.faturado)}</p>
-                <p className="text-xs text-muted-foreground mt-1 capitalize">{mes.label}</p>
+                <p className="text-2xl font-bold mt-2 tabular-nums">
+                  {formatBRL(mes.faturado)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 capitalize">
+                  {mes.label}
+                </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Recebido {formatBRL(mes.recebido)} · {mes.total_pedidos} pedidos ·{" "}
-                  {mes.dias_registrados} fechamento(s)
+                  Recebido {formatBRL(mes.recebido)} · {mes.total_pedidos}{" "}
+                  pedidos · {mes.dias_registrados} fechamento(s)
                 </p>
               </div>
               <Button
@@ -278,7 +318,11 @@ export function FechamentoSection({
                 size="sm"
                 disabled={fechamentosMes.length === 0}
                 onClick={() =>
-                  downloadPeriodoPdf(`Relatório mensal — ${mes.label}`, mes, fechamentosMes)
+                  downloadPeriodoPdf(
+                    `Relatório mensal — ${mes.label}`,
+                    mes,
+                    fechamentosMes,
+                  )
                 }
               >
                 <Download className="size-4" /> PDF
@@ -287,7 +331,12 @@ export function FechamentoSection({
                 variant="outline"
                 size="sm"
                 disabled={exportando || !fechamentosMes.length}
-                onClick={() => void excelPeriodo(`Relatório mensal - ${mes.label}`, fechamentosMes)}
+                onClick={() =>
+                  void excelPeriodo(
+                    `Relatório mensal - ${mes.label}`,
+                    fechamentosMes,
+                  )
+                }
               >
                 Excel
               </Button>
@@ -301,7 +350,8 @@ export function FechamentoSection({
           </h3>
           {fechamentos.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nenhum fechamento ainda. Inicie o dia, registre pedidos e encerre ao final.
+              Nenhum fechamento ainda. Inicie o dia, registre pedidos e encerre
+              ao final.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -318,21 +368,36 @@ export function FechamentoSection({
                 </thead>
                 <tbody>
                   {fechamentos.map((f) => (
-                    <tr key={f.id} className="border-b border-border/50 last:border-0">
+                    <tr
+                      key={f.id}
+                      className="border-b border-border/50 last:border-0"
+                    >
                       <td className="py-3 pr-4">{formatDateBR(f.data)}</td>
                       <td className="py-3 pr-4 text-muted-foreground">
                         {f.iniciado_em && f.encerrado_em
                           ? `${new Date(f.iniciado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })} – ${new Date(f.encerrado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`
                           : "—"}
                       </td>
-                      <td className="py-3 pr-4 tabular-nums">{formatBRL(f.faturado)}</td>
-                      <td className="py-3 pr-4 tabular-nums">{formatBRL(f.recebido)}</td>
+                      <td className="py-3 pr-4 tabular-nums">
+                        {formatBRL(f.faturado)}
+                      </td>
+                      <td className="py-3 pr-4 tabular-nums">
+                        {formatBRL(f.recebido)}
+                      </td>
                       <td className="py-3 pr-4">{f.total_pedidos}</td>
                       <td className="py-3">
-                        <Button variant="ghost" size="sm" onClick={() => setSelecionado(f)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelecionado(f)}
+                        >
                           Ver
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => downloadFechamentoPdf(f)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => downloadFechamentoPdf(f)}
+                        >
                           <FileText className="size-4" /> PDF
                         </Button>
                         <Button
@@ -358,16 +423,19 @@ export function FechamentoSection({
           <DialogHeader>
             <DialogTitle>Encerrar o dia?</DialogTitle>
             <DialogDescription>
-              Será gerado o registro de <strong>{formatDateBR(hojeKey)}</strong> com{" "}
-              {pedidosTurno.length} pedido(s) deste turno. O relatório ficará disponível em PDF e
-              Excel. Depois, use <strong>Iniciar dia</strong> quando quiser reabrir.
+              Será gerado o registro de <strong>{formatDateBR(hojeKey)}</strong>{" "}
+              com {pedidosTurno.length} pedido(s) deste turno. O relatório
+              ficará disponível em PDF e Excel. Depois, use{" "}
+              <strong>Iniciar dia</strong> quando quiser reabrir.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-1">
             <p>
               Faturado:{" "}
               <strong>
-                {formatBRL(buildFechamentoFromPedidos(hojeKey, pedidosTurno).faturado)}
+                {formatBRL(
+                  buildFechamentoFromPedidos(hojeKey, pedidosTurno).faturado,
+                )}
               </strong>
             </p>
             <p>Pedidos: {pedidosTurno.length}</p>
@@ -389,7 +457,9 @@ export function FechamentoSection({
                   step="0.01"
                   value={caixaInput[key]}
                   placeholder="Não informado"
-                  onChange={(e) => setCaixaInput((v) => ({ ...v, [key]: e.target.value }))}
+                  onChange={(e) =>
+                    setCaixaInput((v) => ({ ...v, [key]: e.target.value }))
+                  }
                 />
               </div>
             ))}
@@ -398,26 +468,36 @@ export function FechamentoSection({
               <Input
                 id="responsavel"
                 value={caixaInput.responsavel}
-                onChange={(e) => setCaixaInput((v) => ({ ...v, responsavel: e.target.value }))}
+                onChange={(e) =>
+                  setCaixaInput((v) => ({ ...v, responsavel: e.target.value }))
+                }
               />
             </div>
             <div className="col-span-2">
-              <Label htmlFor="obs-caixa">Observações / descrição das saídas</Label>
+              <Label htmlFor="obs-caixa">
+                Observações / descrição das saídas
+              </Label>
               <Input
                 id="obs-caixa"
                 value={caixaInput.observacoes}
-                onChange={(e) => setCaixaInput((v) => ({ ...v, observacoes: e.target.value }))}
+                onChange={(e) =>
+                  setCaixaInput((v) => ({ ...v, observacoes: e.target.value }))
+                }
               />
             </div>
             <p className="col-span-2 text-sm">
               Entradas em dinheiro: {formatBRL(resumoTurno.entrada)} · Esperado:{" "}
-              {resumoTurno.esperado == null ? "não informado" : formatBRL(resumoTurno.esperado)} ·
-              Diferença:{" "}
-              {resumoTurno.diferenca == null ? "não informada" : formatBRL(resumoTurno.diferenca)}
+              {resumoTurno.esperado == null
+                ? "não informado"
+                : formatBRL(resumoTurno.esperado)}{" "}
+              · Diferença:{" "}
+              {resumoTurno.diferenca == null
+                ? "não informada"
+                : formatBRL(resumoTurno.diferenca)}
             </p>
             <p className="col-span-2 text-xs text-muted-foreground">
-              Use zero quando não houver saldo ou saídas. Campos vazios deixam a conferência
-              incompleta.
+              Use zero quando não houver saldo ou saídas. Campos vazios deixam a
+              conferência incompleta.
             </p>
           </div>
           <DialogFooter>
@@ -438,7 +518,9 @@ export function FechamentoSection({
       >
         <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Relatório de fechamento {selecionado?.data}</DialogTitle>
+            <DialogTitle>
+              Relatório de fechamento {selecionado?.data}
+            </DialogTitle>
             <DialogDescription>
               {selecionado?.id === 0
                 ? "Prévia do turno em andamento."
@@ -448,8 +530,13 @@ export function FechamentoSection({
           {selecionado && (
             <>
               <div className="flex gap-2">
-                <Button onClick={() => downloadFechamentoPdf(selecionado)}>Baixar PDF</Button>
-                <Button disabled={exportando} onClick={() => void excel(selecionado)}>
+                <Button onClick={() => downloadFechamentoPdf(selecionado)}>
+                  Baixar PDF
+                </Button>
+                <Button
+                  disabled={exportando}
+                  onClick={() => void excel(selecionado)}
+                >
                   {exportando ? "Gerando…" : "Baixar Excel"}
                 </Button>
               </div>

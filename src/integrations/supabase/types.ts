@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
@@ -10,18 +16,59 @@ export type Database = {
     Tables: {
       cupons: {
         Row: {
-          id: number;
+          primeira_compra: boolean;
+          ativo: boolean;
           codigo: string;
+          created_at: string;
           descricao: string;
+          id: number;
+          minimo_itens: number;
           tipo_desconto: "percentual" | "frete_gratis";
           valor_desconto: number;
-          minimo_itens: number;
-          ativo: boolean;
-          primeira_compra: boolean;
-          created_at: string;
         };
-        Insert: never;
-        Update: never;
+        Insert: {
+          primeira_compra?: boolean;
+          ativo?: boolean;
+          codigo: string;
+          created_at?: string;
+          descricao: string;
+          id?: number;
+          minimo_itens?: number;
+          tipo_desconto: "percentual" | "frete_gratis";
+          valor_desconto?: number;
+        };
+        Update: {
+          primeira_compra?: boolean;
+          ativo?: boolean;
+          codigo?: string;
+          created_at?: string;
+          descricao?: string;
+          id?: number;
+          minimo_itens?: number;
+          tipo_desconto?: "percentual" | "frete_gratis";
+          valor_desconto?: number;
+        };
+        Relationships: [];
+      };
+      equipe: {
+        Row: {
+          created_at: string;
+          nome: string;
+          papel: "dono" | "dev" | "atendente";
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          nome: string;
+          papel: "dono" | "dev" | "atendente";
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          nome?: string;
+          papel?: "dono" | "dev" | "atendente";
+          user_id?: string;
+        };
         Relationships: [];
       };
       fechamentos_diarios: {
@@ -161,7 +208,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      encerrar_turno_com_relatorio: { Args: { p_turno_id: number; p_caixa: Json }; Returns: Json };
+      encerrar_turno_com_relatorio: {
+        Args: { p_turno_id: number; p_caixa: Json };
+        Returns: Json;
+      };
       salvar_cupom_primeira_compra: {
         Args: {
           p_codigo: string;
@@ -171,6 +221,64 @@ export type Database = {
           p_ativo: boolean;
         };
         Returns: undefined;
+      };
+      pedidos_site_disponiveis: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      site_pausado: { Args: Record<string, never>; Returns: boolean };
+      definir_pausa_site: { Args: { p_pausado: boolean }; Returns: undefined };
+      eh_equipe: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      listar_pagamentos_pix: {
+        Args: {
+          p_ate: string;
+          p_de: string;
+        };
+        Returns: {
+          capture_method: string | null;
+          cliente: string | null;
+          criado_em: string;
+          id: string;
+          pago_em: string | null;
+          pedido_id: number | null;
+          receipt_url: string | null;
+          status: string;
+          telefone: string | null;
+          valor: number;
+        }[];
+      };
+      buscar_clientes_por_telefone: {
+        Args: {
+          p_limite?: number | null;
+          p_termo: string;
+        };
+        Returns: {
+          cliente: string;
+          telefone: string;
+          telefone_normalizado: string;
+          ultimo_pedido_em: string;
+        }[];
+      };
+      buscar_historico_cliente: {
+        Args: {
+          p_limite?: number;
+          p_telefone: string;
+        };
+        Returns: {
+          cliente: string;
+          created_at: string;
+          endereco: string | null;
+          id: number;
+          itens: Json;
+          status: string;
+          taxa_entrega: number;
+          telefone: string | null;
+          tipo_entrega: string;
+          total: number;
+        }[];
       };
     };
     Enums: {
@@ -184,7 +292,10 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+type DefaultSchema = DatabaseWithoutInternals[Extract<
+  keyof Database,
+  "public"
+>];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -205,8 +316,10 @@ export type Tables<
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R;
       }
       ? R

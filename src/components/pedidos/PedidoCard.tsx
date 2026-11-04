@@ -45,7 +45,7 @@ function getWhatsAppPhone(telefone: string | null) {
 function getWhatsAppMessage(pedido: Pedido) {
   const statusMessage: Record<PedidoStatus, string> = {
     pendente: "recebido",
-    "em-preparacao": "em preparacao",
+    "em-preparacao": "aceito e está em preparação",
     "saiu-para-entrega": "saiu para entrega",
     entregue: "entregue",
     cancelado: "cancelado",
@@ -155,13 +155,20 @@ export function PedidoCard({ pedido, onStatusChange, onTogglePago, onEdit }: Pro
         {/* Itens */}
         <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
           {pedido.itens.map((it, i) => (
-            <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="truncate">
-                <span className="font-semibold text-primary">{it.quantidade}x</span> {it.nome}
-              </span>
-              <span className="text-muted-foreground tabular-nums">
-                {formatBRL(it.preco * it.quantidade)}
-              </span>
+            <div key={i} className="grid gap-0.5 text-sm">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="truncate">
+                  <span className="font-semibold text-primary">{it.quantidade}x</span> {it.nome}
+                </span>
+                <span className="text-muted-foreground tabular-nums">
+                  {formatBRL(it.preco * it.quantidade)}
+                </span>
+              </div>
+              {it.observacao?.trim() && (
+                <p className="pl-5 text-xs text-muted-foreground leading-snug">
+                  Obs: {it.observacao}
+                </p>
+              )}
             </div>
           ))}
           {pedido.taxa_entrega > 0 && (
@@ -218,7 +225,7 @@ export function PedidoCard({ pedido, onStatusChange, onTogglePago, onEdit }: Pro
               className="flex-1 min-w-[120px]"
               onClick={() => onStatusChange(pedido.id, "em-preparacao")}
             >
-              <ChefHat className="size-4" /> Preparar
+              <ChefHat className="size-4" /> Aceitar
             </Button>
           )}
           {pedido.status === "em-preparacao" && (
