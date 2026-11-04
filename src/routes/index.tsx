@@ -20,24 +20,35 @@ import { getSupabaseConfigErrorMessage } from "@/lib/supabase-env";
 import { rowToFechamento, type FechamentoDiario } from "@/lib/fechamento-types";
 import { filterPedidosDoTurno, resumoHojeFromPedidos } from "@/lib/fechamento-stats";
 import { rowToTurno, formatTurnoHorario, type Turno } from "@/lib/turno-types";
-import type { Pedido, PedidoStatus, PedidoItem, TipoEntrega, FormaPagamento } from "@/lib/pedidos-types";
+import type {
+  Pedido,
+  PedidoStatus,
+  PedidoItem,
+  TipoEntrega,
+  FormaPagamento,
+} from "@/lib/pedidos-types";
 import { formatBRL, STATUS_META } from "@/lib/pedidos-types";
 import { PedidoCard } from "@/components/pedidos/PedidoCard";
 import { PedidoForm } from "@/components/pedidos/PedidoForm";
+import { CuponsSection } from "@/components/cupons/CuponsSection";
 
 export const Route = createFileRoute("/")({
   ssr: false,
   head: () => ({
     meta: [
       { title: "Dashboard — Hamburgueria" },
-      { name: "description", content: "Painel de pedidos da hamburgueria — registre, acompanhe e gerencie pedidos em tempo real." },
+      {
+        name: "description",
+        content:
+          "Painel de pedidos da hamburgueria — registre, acompanhe e gerencie pedidos em tempo real.",
+      },
     ],
   }),
   component: Dashboard,
 });
 
 type Filter = "todos" | PedidoStatus;
-type ViewTab = "pedidos" | "relatorios";
+type ViewTab = "pedidos" | "relatorios" | "cupons";
 
 function Dashboard() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -122,28 +133,24 @@ function Dashboard() {
     try {
       ch = supabase
         .channel("pedidos-rt")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "pedidos" },
-          (payload) => {
-            setPedidos((prev) => {
-              if (payload.eventType === "INSERT") {
-                const novo = payload.new as unknown as Pedido;
-                if (prev.some((p) => p.id === novo.id)) return prev;
-                return [novo, ...prev];
-              }
-              if (payload.eventType === "UPDATE") {
-                const atualizado = payload.new as unknown as Pedido;
-                return prev.map((p) => (p.id === atualizado.id ? atualizado : p));
-              }
-              if (payload.eventType === "DELETE") {
-                const removido = payload.old as unknown as { id: number };
-                return prev.filter((p) => p.id !== removido.id);
-              }
-              return prev;
-            });
-          },
-        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, (payload) => {
+          setPedidos((prev) => {
+            if (payload.eventType === "INSERT") {
+              const novo = payload.new as unknown as Pedido;
+              if (prev.some((p) => p.id === novo.id)) return prev;
+              return [novo, ...prev];
+            }
+            if (payload.eventType === "UPDATE") {
+              const atualizado = payload.new as unknown as Pedido;
+              return prev.map((p) => (p.id === atualizado.id ? atualizado : p));
+            }
+            if (payload.eventType === "DELETE") {
+              const removido = payload.old as unknown as { id: number };
+              return prev.filter((p) => p.id !== removido.id);
+            }
+            return prev;
+          });
+        })
         .subscribe();
     } catch {
       // Realtime opcional
@@ -185,8 +192,11 @@ function Dashboard() {
     }
   };
 
-  const { faturado: faturadoTurno, recebido: recebidoTurno, a_receber: aReceberTurno } =
-    resumoHojeFromPedidos(pedidosTurno);
+  const {
+    faturado: faturadoTurno,
+    recebido: recebidoTurno,
+    a_receber: aReceberTurno,
+  } = resumoHojeFromPedidos(pedidosTurno);
   const emPreparacao = pedidosTurno.filter((p) => p.status === "em-preparacao").length;
   const pendentes = pedidosTurno.filter((p) => p.status === "pendente").length;
 
@@ -201,11 +211,17 @@ function Dashboard() {
   const handleStatus = async (id: number, status: PedidoStatus) => {
     const prev = pedidos.find((p) => p.id === id);
     patchLocal(id, { status });
-    const { error } = await supabase.from("pedidos").update({ status }).eq("id", id);
+    const { data, error } = await supabase
+      .from("pedidos")
+      .update({ status })
+      .eq("id", id)
+      .select("*")
+      .single();
     if (error) {
       if (prev) patchLocal(id, { status: prev.status });
       toast.error("Não foi possível atualizar");
     } else {
+      patchLocal(id, data as unknown as Pedido);
       toast.success(`Pedido #${id} → ${STATUS_META[status].label}`);
     }
   };
@@ -217,12 +233,22 @@ function Dashboard() {
       patchLocal(id, { pago: !pago });
       toast.error("Não foi possível atualizar pagamento");
     } else {
-      toast.success(pago ? `Pedido #${id} marcado como pago` : `Pedido #${id} marcado como pendente`);
+      toast.success(
+        pago ? `Pedido #${id} marcado como pago` : `Pedido #${id} marcado como pendente`,
+      );
     }
   };
 
   const handleSubmit = async (data: {
-    cliente: string; telefone: string; endereco: string; itens: PedidoItem[]; total: number; tipo_entrega: TipoEntrega; taxa_entrega: number; forma_pagamento: FormaPagamento; pago: boolean;
+    cliente: string;
+    telefone: string;
+    endereco: string;
+    itens: PedidoItem[];
+    total: number;
+    tipo_entrega: TipoEntrega;
+    taxa_entrega: number;
+    forma_pagamento: FormaPagamento;
+    pago: boolean;
   }) => {
     const payload = {
       cliente: data.cliente,
@@ -238,19 +264,47 @@ function Dashboard() {
 
     if (editing) {
       const { error } = await supabase.from("pedidos").update(payload).eq("id", editing.id);
-      if (error) toast.error("Erro ao salvar"); else toast.success("Pedido atualizado");
+      if (error) toast.error("Erro ao salvar");
+      else toast.success("Pedido atualizado");
     } else {
-      const { error } = await supabase.from("pedidos").insert({ ...payload, status: "pendente" });
-      if (error) toast.error("Erro ao criar"); else toast.success("Pedido criado");
+      const { error } = await supabase
+        .from("pedidos")
+        .insert({ ...payload, status: "pendente", origem: "painel" });
+      if (error) toast.error("Erro ao criar");
+      else toast.success("Pedido criado");
     }
     setEditing(null);
   };
 
   const stats = [
-    { label: "Faturado (turno)", value: formatBRL(faturadoTurno), icon: TrendingUp, accent: "text-info", bg: "bg-info/10" },
-    { label: "Recebido (turno)", value: formatBRL(recebidoTurno), icon: Wallet, accent: "text-success", bg: "bg-success/10" },
-    { label: "A receber", value: formatBRL(aReceberTurno), icon: CircleDashed, accent: "text-warning", bg: "bg-warning/15" },
-    { label: "Em preparação", value: emPreparacao, icon: ChefHat, accent: "text-primary", bg: "bg-primary/10" },
+    {
+      label: "Faturado (turno)",
+      value: formatBRL(faturadoTurno),
+      icon: TrendingUp,
+      accent: "text-info",
+      bg: "bg-info/10",
+    },
+    {
+      label: "Recebido (turno)",
+      value: formatBRL(recebidoTurno),
+      icon: Wallet,
+      accent: "text-success",
+      bg: "bg-success/10",
+    },
+    {
+      label: "A receber",
+      value: formatBRL(aReceberTurno),
+      icon: CircleDashed,
+      accent: "text-warning",
+      bg: "bg-warning/15",
+    },
+    {
+      label: "Em preparação",
+      value: emPreparacao,
+      icon: ChefHat,
+      accent: "text-primary",
+      bg: "bg-primary/10",
+    },
   ];
 
   return (
@@ -266,7 +320,11 @@ function Dashboard() {
             <div>
               <h1 className="text-xl font-bold leading-tight">BolaBurguer Dashboard</h1>
               <p className="text-xs text-muted-foreground" suppressHydrationWarning>
-                {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+                {new Date().toLocaleDateString("pt-BR", {
+                  weekday: "long",
+                  day: "2-digit",
+                  month: "long",
+                })}
                 {turnoAtivo ? ` · ${formatTurnoHorario(turnoAtivo)}` : " · Turno fechado"}
               </p>
             </div>
@@ -276,6 +334,7 @@ function Dashboard() {
               <TabsList>
                 <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
                 <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+                <TabsTrigger value="cupons">Cupons</TabsTrigger>
               </TabsList>
             </Tabs>
             {!turnoAtivo ? (
@@ -290,7 +349,10 @@ function Dashboard() {
               </Button>
             ) : (
               <Button
-                onClick={() => { setEditing(null); setFormOpen(true); }}
+                onClick={() => {
+                  setEditing(null);
+                  setFormOpen(true);
+                }}
                 size="lg"
                 className="shadow-[var(--shadow-glow)]"
               >
@@ -309,10 +371,15 @@ function Dashboard() {
                 <PlayCircle className="size-12 mx-auto text-primary mb-4" />
                 <h3 className="text-xl font-bold">Turno fechado</h3>
                 <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-                  Clique em <strong>Iniciar dia</strong> quando abrir a loja. Ao encerrar, o registro
-                  vai para o histórico e você pode iniciar de novo quando quiser.
+                  Clique em <strong>Iniciar dia</strong> quando abrir a loja. Ao encerrar, o
+                  registro vai para o histórico e você pode iniciar de novo quando quiser.
                 </p>
-                <Button className="mt-6 gap-2" size="lg" onClick={handleIniciarDia} disabled={iniciandoDia}>
+                <Button
+                  className="mt-6 gap-2"
+                  size="lg"
+                  onClick={handleIniciarDia}
+                  disabled={iniciandoDia}
+                >
                   <PlayCircle className="size-4" />
                   {iniciandoDia ? "Abrindo…" : "Iniciar dia"}
                 </Button>
@@ -326,7 +393,9 @@ function Dashboard() {
                     <Card key={s.label} className="p-5 border-border/60">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{s.label}</p>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            {s.label}
+                          </p>
                           <p className="text-3xl font-bold mt-2 tabular-nums">{s.value}</p>
                         </div>
                         <div className={`size-10 rounded-xl grid place-items-center ${s.bg}`}>
@@ -379,7 +448,12 @@ function Dashboard() {
                 <p className="text-sm text-muted-foreground mt-1 mb-5">
                   Crie o primeiro pedido ou encerre o dia na aba Relatórios.
                 </p>
-                <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
+                <Button
+                  onClick={() => {
+                    setEditing(null);
+                    setFormOpen(true);
+                  }}
+                >
                   <Plus className="size-4" /> Novo pedido
                 </Button>
               </Card>
@@ -391,7 +465,10 @@ function Dashboard() {
                     pedido={p}
                     onStatusChange={handleStatus}
                     onTogglePago={handleTogglePago}
-                    onEdit={(ped) => { setEditing(ped); setFormOpen(true); }}
+                    onEdit={(ped) => {
+                      setEditing(ped);
+                      setFormOpen(true);
+                    }}
                   />
                 ))}
               </section>
@@ -399,6 +476,7 @@ function Dashboard() {
           </>
         )}
 
+        {viewTab === "cupons" && !configError && <CuponsSection />}
         {viewTab === "relatorios" && !configError && (
           <FechamentoSection
             pedidosTurno={pedidosTurno}
@@ -413,7 +491,10 @@ function Dashboard() {
 
       <PedidoForm
         open={formOpen}
-        onOpenChange={(o) => { setFormOpen(o); if (!o) setEditing(null); }}
+        onOpenChange={(o) => {
+          setFormOpen(o);
+          if (!o) setEditing(null);
+        }}
         initial={editing}
         onSubmit={handleSubmit}
       />
