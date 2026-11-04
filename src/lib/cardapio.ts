@@ -17,6 +17,10 @@ export const CARDAPIO = [
   { nome: "Coca-Cola 600ml", preco: 7.0, categoria: "Bebidas" },
   { nome: "Coca-Cola 1 Litro", preco: 9.0, categoria: "Bebidas" },
   { nome: "Coca-Cola 2 Litros", preco: 13.0, categoria: "Bebidas" },
+  { nome: "Coca-Cola Zero 350ml Latinha", preco: 5, categoria: "Bebidas" },
+  { nome: "Coca-Cola Zero 600ml", preco: 7, categoria: "Bebidas" },
+  { nome: "Coca-Cola Zero 1 Litro", preco: 9, categoria: "Bebidas" },
+  { nome: "Coca-Cola Zero 2 Litros", preco: 13, categoria: "Bebidas" },
 ] as const;
 
 export const EXTRA_BURGER_PRICE = 6;
