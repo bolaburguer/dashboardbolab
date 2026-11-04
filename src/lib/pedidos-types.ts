@@ -14,6 +14,7 @@ export interface PedidoItem {
   quantidade: number;
   preco: number;
   observacao?: string;
+  adicionais?: number;
 }
 
 export interface Pedido {
@@ -29,6 +30,13 @@ export interface Pedido {
   forma_pagamento: FormaPagamento;
   pago: boolean;
   created_at: string;
+  origem?: string | null;
+  cupom_codigo?: string | null;
+  cupom_tipo?: string | null;
+  subtotal_produtos?: number | null;
+  desconto_produtos?: number | null;
+  desconto_entrega?: number | null;
+  historico_status?: { status: PedidoStatus; registrado_em: string }[];
 }
 
 export const TAXA_ENTREGA = 7;

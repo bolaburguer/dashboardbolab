@@ -62,6 +62,7 @@ function getWhatsAppUrl(pedido: Pedido) {
 export function PedidoCard({ pedido, onStatusChange, onTogglePago, onEdit }: Props) {
   const meta = STATUS_META[pedido.status];
   const hora = new Date(pedido.created_at).toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -97,6 +98,40 @@ export function PedidoCard({ pedido, onStatusChange, onTogglePago, onEdit }: Pro
             <span className={`size-1.5 rounded-full ${meta.dot}`} />
             {meta.label}
           </span>
+        </div>
+
+        <div className="rounded-lg bg-muted/30 p-3 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground">Movimentações do pedido</p>
+          <ol className="space-y-1.5 text-xs">
+            <li className="flex justify-between gap-3">
+              <span>Pedido recebido</span>
+              <time dateTime={pedido.created_at} className="tabular-nums">
+                {hora}
+              </time>
+            </li>
+            {(pedido.historico_status ?? []).map((evento, index) => (
+              <li key={`${evento.registrado_em}-${index}`} className="flex justify-between gap-3">
+                <span>
+                  {evento.status === "pendente"
+                    ? "Reaberto"
+                    : (STATUS_META[evento.status]?.label ?? evento.status)}
+                </span>
+                <time
+                  dateTime={evento.registrado_em}
+                  title={new Date(evento.registrado_em).toLocaleString("pt-BR", {
+                    timeZone: "America/Sao_Paulo",
+                  })}
+                  className="tabular-nums"
+                >
+                  {new Date(evento.registrado_em).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "America/Sao_Paulo",
+                  })}
+                </time>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/* Contato */}

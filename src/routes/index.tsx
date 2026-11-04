@@ -19,7 +19,10 @@ import { FechamentoSection } from "@/components/fechamento/FechamentoSection";
 import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { getSupabaseConfigErrorMessage } from "@/lib/supabase-env";
 import { rowToFechamento, type FechamentoDiario } from "@/lib/fechamento-types";
-import { filterPedidosDoTurno, resumoHojeFromPedidos } from "@/lib/fechamento-stats";
+import {
+  filterPedidosDoTurno,
+  resumoHojeFromPedidos,
+} from "@/lib/fechamento-stats";
 import { rowToTurno, formatTurnoHorario, type Turno } from "@/lib/turno-types";
 import type {
   Pedido,
@@ -97,7 +100,9 @@ function Dashboard() {
     setAlterandoPausa(true);
     try {
       const pausado = !sitePausado;
-      const { error } = await supabase.rpc("definir_pausa_site", { p_pausado: pausado });
+      const { error } = await supabase.rpc("definir_pausa_site", {
+        p_pausado: pausado,
+      });
       if (error) throw error;
       setSitePausado(pausado);
       toast.success(
@@ -106,7 +111,9 @@ function Dashboard() {
           : "Pausa removida. O site recebe pedidos enquanto o turno estiver aberto.",
       );
     } catch {
-      toast.error("Não foi possível alterar a pausa. Confira a migration de pausa no Supabase.");
+      toast.error(
+        "Não foi possível alterar a pausa. Confira a migration de pausa no Supabase.",
+      );
     } finally {
       setAlterandoPausa(false);
     }
@@ -116,7 +123,8 @@ function Dashboard() {
   const [configError, setConfigError] = useState<string | null>(null);
 
   const pedidosTurno = useMemo(
-    () => (turnoAtivo ? filterPedidosDoTurno(pedidos, turnoAtivo.iniciado_em) : []),
+    () =>
+      turnoAtivo ? filterPedidosDoTurno(pedidos, turnoAtivo.iniciado_em) : [],
     [pedidos, turnoAtivo],
   );
 
@@ -176,7 +184,9 @@ function Dashboard() {
         setLoading(false);
       } catch (err) {
         if (!active) return;
-        setConfigError(err instanceof Error ? err.message : getSupabaseConfigErrorMessage());
+        setConfigError(
+          err instanceof Error ? err.message : getSupabaseConfigErrorMessage(),
+        );
         setLoading(false);
       }
     };
@@ -186,24 +196,30 @@ function Dashboard() {
     try {
       ch = supabase
         .channel("pedidos-rt")
-        .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, (payload) => {
-          setPedidos((prev) => {
-            if (payload.eventType === "INSERT") {
-              const novo = payload.new as unknown as Pedido;
-              if (prev.some((p) => p.id === novo.id)) return prev;
-              return [novo, ...prev];
-            }
-            if (payload.eventType === "UPDATE") {
-              const atualizado = payload.new as unknown as Pedido;
-              return prev.map((p) => (p.id === atualizado.id ? atualizado : p));
-            }
-            if (payload.eventType === "DELETE") {
-              const removido = payload.old as unknown as { id: number };
-              return prev.filter((p) => p.id !== removido.id);
-            }
-            return prev;
-          });
-        })
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "pedidos" },
+          (payload) => {
+            setPedidos((prev) => {
+              if (payload.eventType === "INSERT") {
+                const novo = payload.new as unknown as Pedido;
+                if (prev.some((p) => p.id === novo.id)) return prev;
+                return [novo, ...prev];
+              }
+              if (payload.eventType === "UPDATE") {
+                const atualizado = payload.new as unknown as Pedido;
+                return prev.map((p) =>
+                  p.id === atualizado.id ? atualizado : p,
+                );
+              }
+              if (payload.eventType === "DELETE") {
+                const removido = payload.old as unknown as { id: number };
+                return prev.filter((p) => p.id !== removido.id);
+              }
+              return prev;
+            });
+          },
+        )
         .subscribe();
     } catch {
       // Realtime opcional
@@ -231,9 +247,15 @@ function Dashboard() {
         return;
       }
 
-      const { data, error } = await supabase.from("turnos").insert({}).select().single();
+      const { data, error } = await supabase
+        .from("turnos")
+        .insert({})
+        .select()
+        .single();
       if (error) {
-        toast.error("Erro ao iniciar dia. Rode a migration de turnos no Supabase.");
+        toast.error(
+          "Erro ao iniciar dia. Rode a migration de turnos no Supabase.",
+        );
         console.error(error);
         return;
       }
@@ -250,38 +272,56 @@ function Dashboard() {
     recebido: recebidoTurno,
     a_receber: aReceberTurno,
   } = resumoHojeFromPedidos(pedidosTurno);
-  const emPreparacao = pedidosTurno.filter((p) => p.status === "em-preparacao").length;
+  const emPreparacao = pedidosTurno.filter(
+    (p) => p.status === "em-preparacao",
+  ).length;
   const pendentes = pedidosTurno.filter((p) => p.status === "pendente").length;
 
   const filtered = useMemo(
-    () => (filter === "todos" ? pedidosTurno : pedidosTurno.filter((p) => p.status === filter)),
+    () =>
+      filter === "todos"
+        ? pedidosTurno
+        : pedidosTurno.filter((p) => p.status === filter),
     [pedidosTurno, filter],
   );
 
   const patchLocal = (id: number, patch: Partial<Pedido>) =>
-    setPedidos((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    setPedidos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    );
 
   const handleStatus = async (id: number, status: PedidoStatus) => {
     const prev = pedidos.find((p) => p.id === id);
     patchLocal(id, { status });
-    const { error } = await supabase.from("pedidos").update({ status }).eq("id", id);
+    const { data, error } = await supabase
+      .from("pedidos")
+      .update({ status })
+      .eq("id", id)
+      .select("*")
+      .single();
     if (error) {
       if (prev) patchLocal(id, { status: prev.status });
       toast.error("Não foi possível atualizar");
     } else {
+      patchLocal(id, data as unknown as Pedido);
       toast.success(`Pedido #${id} → ${STATUS_META[status].label}`);
     }
   };
 
   const handleTogglePago = async (id: number, pago: boolean) => {
     patchLocal(id, { pago });
-    const { error } = await supabase.from("pedidos").update({ pago }).eq("id", id);
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ pago })
+      .eq("id", id);
     if (error) {
       patchLocal(id, { pago: !pago });
       toast.error("Não foi possível atualizar pagamento");
     } else {
       toast.success(
-        pago ? `Pedido #${id} marcado como pago` : `Pedido #${id} marcado como pendente`,
+        pago
+          ? `Pedido #${id} marcado como pago`
+          : `Pedido #${id} marcado como pendente`,
       );
     }
   };
@@ -310,11 +350,16 @@ function Dashboard() {
     };
 
     if (editing) {
-      const { error } = await supabase.from("pedidos").update(payload).eq("id", editing.id);
+      const { error } = await supabase
+        .from("pedidos")
+        .update(payload)
+        .eq("id", editing.id);
       if (error) toast.error("Erro ao salvar");
       else toast.success("Pedido atualizado");
     } else {
-      const { error } = await supabase.from("pedidos").insert({ ...payload, status: "pendente" });
+      const { error } = await supabase
+        .from("pedidos")
+        .insert({ ...payload, status: "pendente", origem: "painel" });
       if (error) toast.error("Erro ao criar");
       else toast.success("Pedido criado");
     }
@@ -363,19 +408,29 @@ function Dashboard() {
               <Flame className="size-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold leading-tight">BolaBurguer Dashboard</h1>
-              <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+              <h1 className="text-xl font-bold leading-tight">
+                BolaBurguer Dashboard
+              </h1>
+              <p
+                className="text-xs text-muted-foreground"
+                suppressHydrationWarning
+              >
                 {new Date().toLocaleDateString("pt-BR", {
                   weekday: "long",
                   day: "2-digit",
                   month: "long",
                 })}
-                {turnoAtivo ? ` · ${formatTurnoHorario(turnoAtivo)}` : " · Turno fechado"}
+                {turnoAtivo
+                  ? ` · ${formatTurnoHorario(turnoAtivo)}`
+                  : " · Turno fechado"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as ViewTab)}>
+            <Tabs
+              value={viewTab}
+              onValueChange={(v) => setViewTab(v as ViewTab)}
+            >
               <TabsList>
                 <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
                 <TabsTrigger value="clientes">Clientes</TabsTrigger>
@@ -434,8 +489,8 @@ function Dashboard() {
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {sitePausado && (
           <Card role="status" className="p-4 border-warning/50">
-            Pedidos do site pausados. Você pode continuar registrando pedidos manualmente. A pausa
-            permanece até clicar em despausar.
+            Pedidos do site pausados. Você pode continuar registrando pedidos
+            manualmente. A pausa permanece até clicar em despausar.
           </Card>
         )}
         {viewTab === "pedidos" && (
@@ -445,8 +500,9 @@ function Dashboard() {
                 <PlayCircle className="size-12 mx-auto text-primary mb-4" />
                 <h3 className="text-xl font-bold">Turno fechado</h3>
                 <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-                  Clique em <strong>Iniciar dia</strong> quando abrir a loja. Ao encerrar, o
-                  registro vai para o histórico e você pode iniciar de novo quando quiser.
+                  Clique em <strong>Iniciar dia</strong> quando abrir a loja. Ao
+                  encerrar, o registro vai para o histórico e você pode iniciar
+                  de novo quando quiser.
                 </p>
                 <Button
                   className="mt-6 gap-2"
@@ -470,9 +526,13 @@ function Dashboard() {
                           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                             {s.label}
                           </p>
-                          <p className="text-3xl font-bold mt-2 tabular-nums">{s.value}</p>
+                          <p className="text-3xl font-bold mt-2 tabular-nums">
+                            {s.value}
+                          </p>
                         </div>
-                        <div className={`size-10 rounded-xl grid place-items-center ${s.bg}`}>
+                        <div
+                          className={`size-10 rounded-xl grid place-items-center ${s.bg}`}
+                        >
                           <s.icon className={`size-5 ${s.accent}`} />
                         </div>
                       </div>
@@ -484,7 +544,8 @@ function Dashboard() {
                   <div>
                     <h2 className="text-2xl font-bold">Pedidos do turno</h2>
                     <p className="text-sm text-muted-foreground">
-                      {filtered.length} {filtered.length === 1 ? "pedido" : "pedidos"}
+                      {filtered.length}{" "}
+                      {filtered.length === 1 ? "pedido" : "pedidos"}
                       {pendentes > 0 && filter === "todos" && (
                         <span className="ml-2 inline-flex items-center gap-1 text-warning font-medium">
                           • {pendentes} aguardando
@@ -492,7 +553,10 @@ function Dashboard() {
                       )}
                     </p>
                   </div>
-                  <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+                  <Tabs
+                    value={filter}
+                    onValueChange={(v) => setFilter(v as Filter)}
+                  >
                     <TabsList>
                       <TabsTrigger value="todos">Todos</TabsTrigger>
                       <TabsTrigger value="pendente">Pendentes</TabsTrigger>
@@ -508,17 +572,25 @@ function Dashboard() {
 
             {configError ? (
               <Card className="p-8 border-destructive/40 bg-destructive/5">
-                <h3 className="font-semibold text-lg text-destructive">Configuração pendente</h3>
-                <p className="text-sm text-muted-foreground mt-2">{configError}</p>
+                <h3 className="font-semibold text-lg text-destructive">
+                  Configuração pendente
+                </h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {configError}
+                </p>
               </Card>
             ) : loading ? (
-              <p className="text-center text-muted-foreground py-20">Carregando...</p>
+              <p className="text-center text-muted-foreground py-20">
+                Carregando...
+              </p>
             ) : turnoAtivo && filtered.length === 0 ? (
               <Card className="p-16 text-center border-dashed">
                 <div className="size-14 rounded-2xl bg-muted mx-auto grid place-items-center mb-4">
                   <ClipboardList className="size-6 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold text-lg">Nenhum pedido neste turno</h3>
+                <h3 className="font-semibold text-lg">
+                  Nenhum pedido neste turno
+                </h3>
                 <p className="text-sm text-muted-foreground mt-1 mb-5">
                   Crie o primeiro pedido ou encerre o dia na aba Relatórios.
                 </p>
@@ -550,6 +622,7 @@ function Dashboard() {
           </>
         )}
 
+        {viewTab === "cupons" && !configError && <CuponsSection />}
         {viewTab === "relatorios" && !configError && (
           <FechamentoSection
             pedidosTurno={pedidosTurno}
@@ -561,7 +634,6 @@ function Dashboard() {
           />
         )}
 
-        {viewTab === "cupons" && !configError && <CuponsSection />}
         {viewTab === "clientes" && !configError && <CustomerHistorySection />}
         {viewTab === "pagamentos" && !configError && <PagamentosSection />}
       </main>

@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
@@ -10,6 +16,7 @@ export type Database = {
     Tables: {
       cupons: {
         Row: {
+          primeira_compra: boolean;
           ativo: boolean;
           codigo: string;
           created_at: string;
@@ -20,6 +27,7 @@ export type Database = {
           valor_desconto: number;
         };
         Insert: {
+          primeira_compra?: boolean;
           ativo?: boolean;
           codigo: string;
           created_at?: string;
@@ -30,6 +38,7 @@ export type Database = {
           valor_desconto?: number;
         };
         Update: {
+          primeira_compra?: boolean;
           ativo?: boolean;
           codigo?: string;
           created_at?: string;
@@ -68,6 +77,7 @@ export type Database = {
           created_at: string;
           data: string;
           detalhes: Json;
+          caixa: Json | null;
           encerrado_em: string | null;
           faturado: number;
           id: number;
@@ -83,6 +93,7 @@ export type Database = {
           created_at?: string;
           data: string;
           detalhes?: Json;
+          caixa?: Json | null;
           encerrado_em?: string | null;
           faturado?: number;
           id?: number;
@@ -98,6 +109,7 @@ export type Database = {
           created_at?: string;
           data?: string;
           detalhes?: Json;
+          caixa?: Json | null;
           encerrado_em?: string | null;
           faturado?: number;
           id?: number;
@@ -136,6 +148,12 @@ export type Database = {
           forma_pagamento: string;
           id: number;
           itens: Json;
+          origem: string | null;
+          cupom_codigo: string | null;
+          cupom_tipo: string | null;
+          subtotal_produtos: number | null;
+          desconto_produtos: number | null;
+          desconto_entrega: number | null;
           pago: boolean;
           status: string;
           taxa_entrega: number;
@@ -150,6 +168,12 @@ export type Database = {
           forma_pagamento?: string;
           id?: number;
           itens?: Json;
+          origem?: string | null;
+          cupom_codigo?: string | null;
+          cupom_tipo?: string | null;
+          subtotal_produtos?: number | null;
+          desconto_produtos?: number | null;
+          desconto_entrega?: number | null;
           pago?: boolean;
           status?: string;
           taxa_entrega?: number;
@@ -164,6 +188,12 @@ export type Database = {
           forma_pagamento?: string;
           id?: number;
           itens?: Json;
+          origem?: string | null;
+          cupom_codigo?: string | null;
+          cupom_tipo?: string | null;
+          subtotal_produtos?: number | null;
+          desconto_produtos?: number | null;
+          desconto_entrega?: number | null;
           pago?: boolean;
           status?: string;
           taxa_entrega?: number;
@@ -178,7 +208,24 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      pedidos_site_disponiveis: { Args: Record<string, never>; Returns: boolean };
+      encerrar_turno_com_relatorio: {
+        Args: { p_turno_id: number; p_caixa: Json };
+        Returns: Json;
+      };
+      salvar_cupom_primeira_compra: {
+        Args: {
+          p_codigo: string;
+          p_descricao: string;
+          p_tipo: string;
+          p_valor: number;
+          p_ativo: boolean;
+        };
+        Returns: undefined;
+      };
+      pedidos_site_disponiveis: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
       site_pausado: { Args: Record<string, never>; Returns: boolean };
       definir_pausa_site: { Args: { p_pausado: boolean }; Returns: undefined };
       eh_equipe: {
@@ -245,7 +292,10 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+type DefaultSchema = DatabaseWithoutInternals[Extract<
+  keyof Database,
+  "public"
+>];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -266,8 +316,10 @@ export type Tables<
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R;
       }
       ? R
