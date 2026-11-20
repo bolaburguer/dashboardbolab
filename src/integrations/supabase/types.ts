@@ -158,6 +158,7 @@ export type Database = {
           status: string;
           taxa_entrega: number;
           telefone: string | null;
+          tracking_token: string | null;
           tipo_entrega: string;
           total: number;
         };
@@ -178,6 +179,7 @@ export type Database = {
           status?: string;
           taxa_entrega?: number;
           telefone?: string | null;
+          tracking_token?: string | null;
           tipo_entrega?: string;
           total?: number;
         };
@@ -198,6 +200,7 @@ export type Database = {
           status?: string;
           taxa_entrega?: number;
           telefone?: string | null;
+          tracking_token?: string | null;
           tipo_entrega?: string;
           total?: number;
         };
