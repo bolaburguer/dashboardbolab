@@ -30,6 +30,7 @@ export interface Pedido {
   forma_pagamento: FormaPagamento;
   pago: boolean;
   created_at: string;
+  tracking_token: string | null;
   origem?: string | null;
   cupom_codigo?: string | null;
   cupom_tipo?: string | null;
