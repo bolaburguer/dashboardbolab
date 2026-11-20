@@ -42,7 +42,9 @@ npm run dev
 
 No **Novo pedido**, cada item pode ser escolhido do cardápio (`src/lib/cardapio.ts`), que já preenche nome e preço. Nos hambúrgueres aparece a opção **Hambúrguer adicional (+R$ 6,00 por unidade)**, igual à do site: ela soma o valor ao preço do item e escreve na observação o mesmo texto que o site grava ("Adicional: 1 hambúrguer (+R$ 6,00 por unidade)"). Assim o card e a impressão saem iguais para pedido do site e pedido manual.
 
-O cardápio e o preço do adicional também existem no site (`src/lib/menu-data.ts`) e no app (`lib/src/cardapio.dart`). Se um preço mudar, altere nos três.
+O cardápio e o preço do adicional também existem no site (`src/lib/menu-data.ts`) e no app (`../app/lib/src/cardapio.dart`). Se um preço mudar, altere nos três.
+
+O app Flutter está em [`../app/`](../app/). Para configurar e executar o dashboard Android, siga [`../app/README.md`](../app/README.md). Ele usa o mesmo Supabase, autenticação da equipe e RLS do dashboard web, com impressão Bluetooth Classic SPP/ESC-POS para a BT-583 de 58 mm.
 
 ## Login da equipe
 
