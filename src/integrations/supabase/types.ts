@@ -283,6 +283,26 @@ export type Database = {
           total: number;
         }[];
       };
+      buscar_historico_cliente_dashboard: {
+        Args: {
+          p_limite?: number;
+          p_telefone: string;
+        };
+        Returns: {
+          cliente: string;
+          created_at: string;
+          endereco: string | null;
+          forma_pagamento: string;
+          id: number;
+          itens: Json;
+          pago: boolean;
+          status: string;
+          taxa_entrega: number;
+          telefone: string | null;
+          tipo_entrega: string;
+          total: number;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never;
