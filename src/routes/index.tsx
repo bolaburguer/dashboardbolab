@@ -62,6 +62,7 @@ function DashboardPage() {
   );
 }
 
+const SITE_TRACKING_URL = "https://bolaburguer.netlify.app";
 type Filter = "todos" | PedidoStatus;
 type ViewTab = "pedidos" | "clientes" | "cupons" | "pagamentos" | "relatorios";
 
@@ -308,6 +309,49 @@ function Dashboard() {
     }
   };
 
+  const handleTrackingLink = async (id: number): Promise<string | null> => {
+    const pedido = pedidos.find((item) => item.id === id);
+    if (!pedido || pedido.status === "entregue" || pedido.status === "cancelado") return null;
+
+    let token = pedido.tracking_token;
+    if (!token) {
+      const novoToken = crypto.randomUUID();
+      const { data, error } = await supabase
+        .from("pedidos")
+        .update({ tracking_token: novoToken })
+        .eq("id", id)
+        .is("tracking_token", null)
+        .neq("status", "entregue")
+        .neq("status", "cancelado")
+        .select("tracking_token")
+        .maybeSingle();
+      if (error) {
+        toast.error("Não foi possível gerar o link de acompanhamento.");
+        return null;
+      }
+      token = data?.tracking_token ?? null;
+      if (!token) {
+        const { data: atual, error: erroAtual } = await supabase
+          .from("pedidos")
+          .select("tracking_token, status")
+          .eq("id", id)
+          .maybeSingle();
+        if (
+          erroAtual ||
+          !atual?.tracking_token ||
+          atual.status === "entregue" ||
+          atual.status === "cancelado"
+        ) {
+          toast.error("Este pedido não pode mais ser acompanhado.");
+          return null;
+        }
+        token = atual.tracking_token;
+      }
+      patchLocal(id, { tracking_token: token });
+    }
+
+    return `${SITE_TRACKING_URL}/pedido/${token}`;
+  };
   const handleTogglePago = async (id: number, pago: boolean) => {
     patchLocal(id, { pago });
     const { error } = await supabase
@@ -359,7 +403,7 @@ function Dashboard() {
     } else {
       const { error } = await supabase
         .from("pedidos")
-        .insert({ ...payload, status: "pendente", origem: "painel" });
+        .insert({ ...payload, status: "pendente", origem: "painel", tracking_token: crypto.randomUUID() });
       if (error) toast.error("Erro ao criar");
       else toast.success("Pedido criado");
     }
@@ -611,6 +655,7 @@ function Dashboard() {
                     pedido={p}
                     onStatusChange={handleStatus}
                     onTogglePago={handleTogglePago}
+                    onTrackingLink={handleTrackingLink}
                     onEdit={(ped) => {
                       setEditing(ped);
                       setFormOpen(true);

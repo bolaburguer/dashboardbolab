@@ -16,9 +16,11 @@ import {
   BadgeCheck,
   CircleDashed,
   MessageCircle,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
 import type { Pedido, PedidoStatus, FormaPagamento } from "@/lib/pedidos-types";
 import { STATUS_META, FORMA_PAGAMENTO_META, formatBRL } from "@/lib/pedidos-types";
 import { printPedido } from "@/lib/print-pedido";
@@ -28,6 +30,7 @@ interface Props {
   onStatusChange: (id: number, status: PedidoStatus) => void;
   onTogglePago: (id: number, pago: boolean) => void;
   onEdit: (p: Pedido) => void;
+  onTrackingLink: (id: number) => Promise<string | null>;
 }
 
 const FORMA_ICON: Record<FormaPagamento, typeof Wallet> = {
@@ -59,7 +62,13 @@ function getWhatsAppUrl(pedido: Pedido) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(getWhatsAppMessage(pedido))}`;
 }
 
-export function PedidoCard({ pedido, onStatusChange, onTogglePago, onEdit }: Props) {
+export function PedidoCard({
+  pedido,
+  onStatusChange,
+  onTogglePago,
+  onEdit,
+  onTrackingLink,
+}: Props) {
   const meta = STATUS_META[pedido.status];
   const hora = new Date(pedido.created_at).toLocaleTimeString("pt-BR", {
     timeZone: "America/Sao_Paulo",
@@ -265,6 +274,59 @@ export function PedidoCard({ pedido, onStatusChange, onTogglePago, onEdit }: Pro
             >
               <XCircle className="size-4" /> Cancelar
             </Button>
+          )}
+          {pedido.status !== "cancelado" && pedido.status !== "entregue" && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const url = await onTrackingLink(pedido.id);
+                  if (!url) return;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    toast.success("Link de acompanhamento copiado!");
+                  } catch {
+                    window.prompt("Copie o link de acompanhamento:", url);
+                  }
+                }}
+                title={pedido.tracking_token ? "Copiar link de acompanhamento" : "Gerar link de acompanhamento"}
+              >
+                <Link2 className="size-4" />
+                {pedido.tracking_token ? "Copiar rastreio" : "Gerar rastreio"}
+              </Button>
+              {getWhatsAppPhone(pedido.telefone) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const popup = window.open("about:blank", "_blank");
+                    if (!popup) {
+                      toast.error("Permita pop-ups para abrir o WhatsApp.");
+                      return;
+                    }
+                    let url: string | null;
+                    try {
+                      url = await onTrackingLink(pedido.id);
+                    } catch {
+                      popup.close();
+                      toast.error("Não foi possível gerar o link de acompanhamento.");
+                      return;
+                    }
+                    if (!url) {
+                      popup.close();
+                      return;
+                    }
+                    popup.opener = null;
+                    const message = `Olá, ${pedido.cliente}! Acompanhe seu pedido #${pedido.id} da BolaBurguer: ${url}`;
+                    popup.location.href = `https://wa.me/${getWhatsAppPhone(pedido.telefone)}?text=${encodeURIComponent(message)}`;
+                  }}
+                  title="Enviar link de acompanhamento pelo WhatsApp"
+                >
+                  <MessageCircle className="size-4" /> Enviar rastreio
+                </Button>
+              )}
+            </>
           )}
           {whatsappUrl && (
             <Button size="sm" variant="outline" asChild title="Enviar status no WhatsApp">
