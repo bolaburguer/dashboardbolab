@@ -301,25 +301,31 @@ export function PedidoCard({
                   variant="outline"
                   onClick={async () => {
                     const popup = window.open("about:blank", "_blank");
-                    if (!popup) {
-                      toast.error("Permita pop-ups para abrir o WhatsApp.");
-                      return;
-                    }
                     let url: string | null;
                     try {
                       url = await onTrackingLink(pedido.id);
                     } catch {
-                      popup.close();
+                      popup?.close();
                       toast.error("Não foi possível gerar o link de acompanhamento.");
                       return;
                     }
                     if (!url) {
-                      popup.close();
+                      popup?.close();
                       return;
                     }
-                    popup.opener = null;
                     const message = `Olá, ${pedido.cliente}! Acompanhe seu pedido #${pedido.id} da BolaBurguer: ${url}`;
-                    popup.location.href = `https://wa.me/${getWhatsAppPhone(pedido.telefone)}?text=${encodeURIComponent(message)}`;
+                    const whatsappUrl = `https://wa.me/${getWhatsAppPhone(pedido.telefone)}?text=${encodeURIComponent(message)}`;
+                    if (popup) {
+                      popup.location.href = whatsappUrl;
+                      toast.success("WhatsApp aberto. Confira a mensagem e toque em Enviar.");
+                      return;
+                    }
+                    try {
+                      await navigator.clipboard.writeText(message);
+                      toast.warning("O navegador bloqueou a janela. A mensagem com o rastreio foi copiada; cole-a no WhatsApp.");
+                    } catch {
+                      window.prompt("Copie a mensagem e cole no WhatsApp:", message);
+                    }
                   }}
                   title="Enviar link de acompanhamento pelo WhatsApp"
                 >
