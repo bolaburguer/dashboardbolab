@@ -300,7 +300,10 @@ export function PedidoCard({
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    const popup = window.open("about:blank", "_blank");
+                    const openWhatsApp = (window as Window & {
+                      bolaOpenWhatsApp?: (url: string) => Promise<boolean>;
+                    }).bolaOpenWhatsApp;
+                    const popup = openWhatsApp ? null : window.open("about:blank", "_blank");
                     let url: string | null;
                     try {
                       url = await onTrackingLink(pedido.id);
@@ -315,6 +318,12 @@ export function PedidoCard({
                     }
                     const message = `Olá, ${pedido.cliente}! Acompanhe seu pedido #${pedido.id} da BolaBurguer: ${url}`;
                     const whatsappUrl = `https://wa.me/${getWhatsAppPhone(pedido.telefone)}?text=${encodeURIComponent(message)}`;
+                    if (openWhatsApp) {
+                      const opened = await openWhatsApp(whatsappUrl);
+                      if (opened) toast.success("WhatsApp aberto. Confira a mensagem e toque em Enviar.");
+                      else toast.error("Não foi possível abrir o WhatsApp neste computador.");
+                      return;
+                    }
                     if (popup) {
                       popup.location.href = whatsappUrl;
                       toast.success("WhatsApp aberto. Confira a mensagem e toque em Enviar.");
